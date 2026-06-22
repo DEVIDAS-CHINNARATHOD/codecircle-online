@@ -275,7 +275,11 @@ export default function Dashboard() {
                     animate={{ opacity: 1, x: 0 }}
                     className={`flex items-center gap-4 rounded-xl border p-4 ${meta?.bg} ${meta?.border}`}
                   >
-                    <span className="text-2xl">{meta?.icon}</span>
+                    {meta?.iconUrl ? (
+                      <img src={meta.iconUrl} className="w-8 h-8 object-contain" alt={cert.badgeName} />
+                    ) : (
+                      <span className="text-2xl">{meta?.icon}</span>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold text-sm ${meta?.color}`}>{cert.badgeName}</div>
                       <div className="text-xs text-neutral-500 mt-0.5">{monthName} {cert.year} · {cert.resourceCount} resource{cert.resourceCount !== 1 ? 's' : ''}</div>
