@@ -10,9 +10,9 @@ const QRCode = require('qrcode')
 
 // ─── Tier definitions ─────────────────────────────────────────────────────────
 const TIERS = [
-  { min: 10, tier: 'codeelite', badgeName: 'CodeElite', color: '#FFD700', emoji: '👑' },
-  { min: 5,  tier: 'codeflame', badgeName: 'CodeFlame',  color: '#FF6B35', emoji: '🔥' },
-  { min: 1,  tier: 'codespark', badgeName: 'CodeSpark',  color: '#7B61FF', emoji: '⚡' },
+  { min: 10, tier: 'codeelite', badgeName: 'Titan', color: '#FFD700', emoji: '👑' },
+  { min: 5,  tier: 'codeflame', badgeName: 'Catalyst',  color: '#FF6B35', emoji: '🔥' },
+  { min: 1,  tier: 'codespark', badgeName: 'Spark',  color: '#7B61FF', emoji: '⚡' },
 ]
 const resolveTier = (count) => TIERS.find(t => count >= t.min) || null
 
@@ -187,11 +187,51 @@ async function generateCertificateImage({
   // Load and draw signature
   try {
     const sig = await loadImage(SIGNATURE_PATH)
-    // Draw white rect behind signature area so it looks on paper
-    ctx.fillStyle = 'rgba(255,255,255,0.06)'
-    ctx.fillRect(sigX - 20, sigY - 10, 220, 80)
-    ctx.drawImage(sig, sigX, sigY, 200, 65)
-  } catch {
+    
+    // Create offscreen canvas to process signature image
+    const sW = sig.width
+    const sH = sig.height
+    const offscreen = createCanvas(sW, sH)
+    const octx = offscreen.getContext('2d')
+    octx.drawImage(sig, 0, 0)
+    
+    const imgData = octx.getImageData(0, 0, sW, sH)
+    const data = imgData.data
+    
+    // Convert themeColor hex to RGB
+    let rTheme = 255, gTheme = 255, bTheme = 255
+    const match = color.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
+    if (match) {
+      rTheme = parseInt(match[1], 16)
+      gTheme = parseInt(match[2], 16)
+      bTheme = parseInt(match[3], 16)
+    }
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i]
+      const g = data[i+1]
+      const b = data[i+2]
+      
+      const brightness = (r + g + b) / 3
+      if (brightness > 200) {
+        // Light background -> fully transparent
+        data[i+3] = 0
+      } else {
+        // Dark stroke -> change to theme color or white
+        data[i] = rTheme
+        data[i+1] = gTheme
+        data[i+2] = bTheme
+        // Map stroke opacity based on darkness
+        const opacity = Math.round((255 - brightness) * 1.5)
+        data[i+3] = Math.min(255, opacity)
+      }
+    }
+    octx.putImageData(imgData, 0, 0)
+
+    // Draw the processed transparent signature on the dark certificate canvas
+    ctx.drawImage(offscreen, sigX, sigY - 15, 200, 80)
+  } catch (err) {
+    console.error('Error drawing signature:', err)
     // Fallback text signature
     ctx.fillStyle = '#DDDDEE'
     ctx.font      = 'italic 22px sans-serif'

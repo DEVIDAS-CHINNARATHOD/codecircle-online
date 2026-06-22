@@ -37,4 +37,35 @@ router.get('/:id/download', auth, async (req, res) => {
   }
 })
 
+// ─── GET /api/certificates/:id/verify ─────────────────────────────────────────
+// Returns public certificate details for verification.
+router.get('/:id/verify', async (req, res) => {
+  try {
+    const cert = await Certificate.findById(req.params.id)
+      .populate('userId', 'name avatar username')
+    if (!cert) return res.status(404).json({ error: 'Certificate not found or invalid ID' })
+    res.json({
+      valid: true,
+      cert: {
+        _id: cert._id,
+        userName: cert.userId?.name || 'Unknown User',
+        userAvatar: cert.userId?.avatar,
+        username: cert.userId?.username,
+        badgeName: cert.badgeName,
+        tier: cert.tier,
+        month: cert.month,
+        year: cert.year,
+        isCustom: cert.isCustom,
+        platforms: cert.platforms,
+        contribution: cert.contribution,
+        themeColor: cert.themeColor,
+        customMessage: cert.customMessage,
+        createdAt: cert.createdAt,
+      }
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Invalid Certificate ID format' })
+  }
+})
+
 module.exports = router

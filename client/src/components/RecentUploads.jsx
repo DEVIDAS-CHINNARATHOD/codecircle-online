@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Calendar, Link2, User } from 'lucide-react'
+import { ArrowRight, Calendar, Link2, User, Grid } from 'lucide-react'
 import axios from 'axios'
 import { getApiBase } from '../lib/utils'
 
@@ -9,14 +9,20 @@ const API = getApiBase()
 export default function RecentUploads() {
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)
+  const [limit, setLimit]       = useState(6)
+  const [total, setTotal]       = useState(0)
 
   useEffect(() => {
+    setLoading(true)
     axios
-      .get(`${API}/resources?limit=6`)
-      .then(res => setResources(res.data.resources || []))
+      .get(`${API}/resources?limit=${limit}`)
+      .then(res => {
+        setResources(res.data.resources || [])
+        setTotal(res.data.total || 0)
+      })
       .catch(() => setResources([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [limit])
 
   return (
     <section className="section-padding border-t border-white/8">
@@ -26,15 +32,25 @@ export default function RecentUploads() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="flex items-end justify-between mb-12"
+          className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4"
         >
           <div>
-            <p className="label-text mb-4">Recent Uploads</p>
+            <p className="label-text mb-4">Resources Hub</p>
             <h2 className="heading-lg text-white">Latest resources shared</h2>
           </div>
-          <a href="/dashboard" className="btn-ghost text-sm hidden sm:flex">
-            Upload more <ArrowRight size={14} />
-          </a>
+          <div className="flex items-center gap-3">
+            {limit !== 'all' && resources.length < total && (
+              <button
+                onClick={() => setLimit('all')}
+                className="btn-primary text-sm flex items-center gap-2"
+              >
+                <Grid size={14} /> View All ({total})
+              </button>
+            )}
+            <a href="/submit-resource" className="btn-ghost text-sm flex items-center gap-2">
+              Upload resource <ArrowRight size={14} />
+            </a>
+          </div>
         </motion.div>
 
         {loading ? (
@@ -58,19 +74,27 @@ export default function RecentUploads() {
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.05, duration: 0.4 }}
-                className="group glass rounded-2xl overflow-hidden hover:border-white/20 transition-all"
+                transition={{ delay: i * 0.03, duration: 0.4 }}
+                className="group glass rounded-2xl overflow-hidden hover:border-white/20 transition-all flex flex-col justify-between"
               >
-                {resource.image ? (
-                  <img src={resource.image} alt={resource.title} className="w-full h-40 object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                ) : (
-                  <div className="w-full h-40 bg-white/5" />
-                )}
-                <div className="p-5">
-                  {resource.category && <span className="label-text mb-2 block">{resource.category}</span>}
-                  <h3 className="font-medium text-white text-base mb-2 line-clamp-2">{resource.title}</h3>
-                  <p className="text-sm text-neutral-500 line-clamp-2">{resource.description}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-neutral-700">
+                <div>
+                  {resource.image ? (
+                    <img src={resource.image} alt={resource.title} className="w-full h-40 object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                  ) : (
+                    <div className="w-full h-40 bg-white/5" />
+                  )}
+                  <div className="p-5">
+                    {resource.category && (
+                      <span className="label-text mb-2 block text-violet-400 font-semibold tracking-wider uppercase text-[10px]">
+                        {resource.category}
+                      </span>
+                    )}
+                    <h3 className="font-medium text-white text-base mb-2 line-clamp-2">{resource.title}</h3>
+                    <p className="text-sm text-neutral-500 line-clamp-2">{resource.description}</p>
+                  </div>
+                </div>
+                <div className="p-5 pt-0 mt-auto">
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-700">
                     <span className="flex items-center gap-1">
                       <Calendar size={10} />
                       {new Date(resource.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -79,7 +103,7 @@ export default function RecentUploads() {
                       <User size={10} />
                       <span className="truncate">{resource.submittedBy?.name || 'Contributor'}</span>
                     </span>
-                    <span className="flex items-center gap-1 truncate">
+                    <span className="flex items-center gap-1 truncate text-violet-400/80 group-hover:text-violet-400">
                       <Link2 size={10} />
                       Link
                     </span>
@@ -90,11 +114,16 @@ export default function RecentUploads() {
           </div>
         )}
 
-        <div className="mt-6 sm:hidden">
-          <a href="/dashboard" className="btn-ghost text-sm">
-            Upload more <ArrowRight size={14} />
-          </a>
-        </div>
+        {limit !== 'all' && resources.length < total && (
+          <div className="mt-8 text-center sm:hidden">
+            <button
+              onClick={() => setLimit('all')}
+              className="btn-primary text-sm w-full py-3"
+            >
+              View All Resources ({total})
+            </button>
+          </div>
+        )}
       </div>
     </section>
   )

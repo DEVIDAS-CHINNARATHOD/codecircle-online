@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, Edit2, X, Check, Award, Download, Users, FileText, BookOpen, RefreshCw, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Edit2, X, Check, Award, Download, Users, FileText, BookOpen, RefreshCw, ChevronRight, Globe, MessageSquare, Linkedin } from 'lucide-react'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import { CATEGORIES } from '../components/CategoriesSection'
@@ -13,9 +13,10 @@ const API = getApiBase()
 const TABS = ['Posts', 'Resources', 'Users', 'Certificates']
 
 const TIER_META = {
-  codespark:  { label: 'CodeSpark',  color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/30',  icon: '⚡' },
-  codeflame:  { label: 'CodeFlame',  color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',  icon: '🔥' },
-  codeelite:  { label: 'CodeElite',  color: 'text-yellow-400',  bg: 'bg-yellow-500/10 border-yellow-500/30',  icon: '👑' },
+  codespark:  { label: 'Spark',     color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/30',  icon: '⚡', iconUrl: '/assets/badge_spark.png' },
+  codeflame:  { label: 'Catalyst',  color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',  icon: '🔥', iconUrl: '/assets/badge_catalyst.png' },
+  codeelite:  { label: 'Titan',     color: 'text-yellow-400',  bg: 'bg-yellow-500/10 border-yellow-500/30',  icon: '👑', iconUrl: '/assets/badge_titan.png' },
+  custom:     { label: 'Custom',    color: 'text-blue-400',    bg: 'bg-blue-500/10 border-blue-500/30',      icon: '✨' },
 }
 
 export default function Admin() {
@@ -34,6 +35,28 @@ export default function Admin() {
   const [certificates, setCertificates]   = useState([])
   const [certLoading, setCertLoading]     = useState(false)
   const [generating, setGenerating]       = useState(null) // userId being generated
+  const [allUsers, setAllUsers]           = useState([])
+
+  // Modals state
+  const [showCustomModal, setShowCustomModal] = useState(false)
+  const [showEditModal, setShowEditModal]     = useState(false)
+
+  // Modals forms
+  const [customForm, setCustomForm] = useState({
+    userId: '',
+    badgeName: 'Community Champion',
+    platforms: [],
+    contribution: '',
+    themeColor: '#5B8CFF',
+    customMessage: 'Thank you for your multi-platform contributions!',
+  })
+
+  const [editForm, setEditForm] = useState({
+    _id: '',
+    badgeName: '',
+    themeColor: '',
+    customMessage: '',
+  })
 
   useEffect(() => {
     if (!loading && (!user || !user.isAdmin)) navigate('/')
@@ -53,9 +76,11 @@ export default function Admin() {
       Promise.all([
         axios.get(`${API}/admin/badge-candidates`),
         axios.get(`${API}/admin/certificates`),
-      ]).then(([candidatesRes, certsRes]) => {
+        axios.get(`${API}/admin/all-users`),
+      ]).then(([candidatesRes, certsRes, usersRes]) => {
         setCandidates(candidatesRes.data.candidates || [])
         setCertificates(certsRes.data || [])
+        setAllUsers(usersRes.data || [])
       }).catch(() => {})
         .finally(() => setCertLoading(false))
     }
@@ -112,7 +137,7 @@ export default function Admin() {
     setGenerating(userId)
     try {
       await axios.post(`${API}/admin/certificates/generate`, { userId, tier })
-      setMsg(`Certificate generated for ${TIER_META[tier]?.label}!`)
+      setMsg(`Certificate generated!`)
       setTimeout(() => setMsg(''), 3000)
       fetchData()
     } catch (err) {
@@ -120,6 +145,48 @@ export default function Admin() {
     } finally {
       setGenerating(null)
     }
+  }
+
+  const submitCustomCertificate = async (e) => {
+    e.preventDefault()
+    if (!customForm.userId) return alert('Please select a user.')
+    setSubmitting(true)
+    try {
+      await axios.post(`${API}/admin/certificates/custom`, customForm)
+      setMsg('Custom certificate generated successfully!')
+      setShowCustomModal(false)
+      fetchData()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to generate custom certificate.')
+    } finally {
+      setSubmitting(false)
+      setTimeout(() => setMsg(''), 3000)
+    }
+  }
+
+  const submitEditCertificate = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      await axios.put(`${API}/admin/certificates/${editForm._id}/edit`, editForm)
+      setMsg('Certificate updated and re-rendered successfully!')
+      setShowEditModal(false)
+      fetchData()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update certificate.')
+    } finally {
+      setSubmitting(false)
+      setTimeout(() => setMsg(''), 3000)
+    }
+  }
+
+  const togglePlatform = (plat) => {
+    setCustomForm(f => {
+      const platforms = f.platforms.includes(plat)
+        ? f.platforms.filter(p => p !== plat)
+        : [...f.platforms, plat]
+      return { ...f, platforms }
+    })
   }
 
   const monthLabel = (m, y) =>
@@ -316,23 +383,48 @@ export default function Admin() {
           <div className="space-y-8">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-white font-medium text-lg">Certificate Generator</h2>
-                <p className="text-sm text-neutral-500 mt-1">Generate achievement certificates for contributors this month.</p>
+                <h2 className="text-white font-medium text-lg">Certificate Manager</h2>
+                <p className="text-sm text-neutral-500 mt-1">Generate and edit achievements for contributors.</p>
               </div>
-              <button onClick={fetchData} className="btn-ghost text-sm flex items-center gap-2">
-                <RefreshCw size={13} /> Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setCustomForm({
+                      userId: allUsers[0]?._id || '',
+                      badgeName: 'Community Leader',
+                      platforms: [],
+                      contribution: '',
+                      themeColor: '#5B8CFF',
+                      customMessage: 'Thank you for your awesome multi-platform contributions!',
+                    })
+                    setShowCustomModal(true)
+                  }}
+                  className="btn-primary text-sm flex items-center gap-2"
+                >
+                  <Plus size={14} /> Custom Certificate
+                </button>
+                <button onClick={fetchData} className="btn-ghost text-sm flex items-center gap-2">
+                  <RefreshCw size={13} /> Refresh
+                </button>
+              </div>
             </div>
 
             {/* Badge tier legend */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3 flex-wrap">
               {Object.entries(TIER_META).map(([key, meta]) => (
                 <div key={key} className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${meta.bg}`}>
-                  <span className="text-xl">{meta.icon}</span>
+                  {meta.iconUrl ? (
+                    <img src={meta.iconUrl} className="w-6 h-6 object-contain" alt={meta.label} />
+                  ) : (
+                    <span className="text-xl">{meta.icon}</span>
+                  )}
                   <div>
                     <div className={`text-sm font-semibold ${meta.color}`}>{meta.label}</div>
                     <div className="text-xs text-neutral-500">
-                      {key === 'codespark' ? '1+ resources/month' : key === 'codeflame' ? '5+ resources/month' : '10+ resources/month'}
+                      {key === 'codespark' && '1+ resources/month'}
+                      {key === 'codeflame' && '5+ resources/month'}
+                      {key === 'codeelite' && '10+ resources/month'}
+                      {key === 'custom' && 'External platform contributors'}
                     </div>
                   </div>
                 </div>
@@ -375,7 +467,12 @@ export default function Admin() {
                         {/* Badge tier */}
                         {meta && (
                           <div className={`text-xs px-2 py-1 rounded-lg border shrink-0 ${meta.bg} ${meta.color} flex items-center gap-1`}>
-                            {meta.icon} {meta.label}
+                            {meta.iconUrl ? (
+                              <img src={meta.iconUrl} className="w-3.5 h-3.5 object-contain" alt={meta.label} />
+                            ) : (
+                              <span>{meta.icon}</span>
+                            )}
+                            <span>{meta.label}</span>
                           </div>
                         )}
 
@@ -415,21 +512,39 @@ export default function Admin() {
               ) : (
                 <div className="flex flex-col gap-px bg-white/8 rounded-2xl overflow-hidden border border-white/8">
                   {certificates.map(cert => {
-                    const meta = TIER_META[cert.tier]
+                    const meta = TIER_META[cert.tier] || TIER_META.custom
                     return (
-                      <div key={cert._id} className="bg-surface-0 hover:bg-surface-1 transition-colors px-5 py-4 flex items-center gap-4">
+                      <div key={cert._id} className="bg-surface-0 hover:bg-surface-1 transition-colors px-5 py-4 flex items-center gap-4 flex-wrap md:flex-nowrap">
                         {cert.userId?.avatar && <img src={cert.userId.avatar} alt={cert.userId.name} className="w-8 h-8 rounded-full border border-white/10 shrink-0" />}
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-white text-sm">{cert.userId?.name}</div>
+                          <div className="font-medium text-white text-sm">{cert.userId?.name || 'Unknown Recipient'}</div>
                           <div className="text-xs text-neutral-600">{monthLabel(cert.month, cert.year)}</div>
                         </div>
                         <div className={`text-xs px-2 py-1 rounded-lg border flex items-center gap-1 shrink-0 ${meta?.bg} ${meta?.color}`}>
-                          {meta?.icon} {cert.badgeName}
+                          {meta?.iconUrl ? (
+                            <img src={meta.iconUrl} className="w-3.5 h-3.5 object-contain" alt={cert.badgeName} />
+                          ) : (
+                            <span>{meta?.icon}</span>
+                          )}
+                          <span>{cert.badgeName}</span>
                         </div>
                         <div className="text-xs text-neutral-600 shrink-0">
                           {cert.downloaded ? <span className="text-green-500 flex items-center gap-1"><Download size={11} /> Downloaded</span> : 'Not yet downloaded'}
                         </div>
-                        <ChevronRight size={14} className="text-neutral-700 shrink-0" />
+                        <button
+                          onClick={() => {
+                            setEditForm({
+                              _id: cert._id,
+                              badgeName: cert.badgeName,
+                              themeColor: cert.themeColor || '#FFD700',
+                              customMessage: cert.customMessage || '',
+                            })
+                            setShowEditModal(true)
+                          }}
+                          className="btn-ghost text-xs flex items-center gap-1"
+                        >
+                          <Edit2 size={12} /> Edit
+                        </button>
                       </div>
                     )
                   })}
@@ -439,6 +554,175 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* ── Custom Certificate Modal ────────────────────────────────────── */}
+      {showCustomModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass rounded-2xl p-6 w-full max-w-lg relative max-h-[90vh] overflow-y-auto"
+          >
+            <button onClick={() => setShowCustomModal(false)} className="absolute top-4 right-4 text-neutral-500 hover:text-white"><X size={18} /></button>
+            <h2 className="text-lg font-bold text-white mb-4">Generate Custom Certificate</h2>
+            <form onSubmit={submitCustomCertificate} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-neutral-400">Recipient User</label>
+                <select
+                  required
+                  value={customForm.userId}
+                  onChange={e => setCustomForm(f => ({ ...f, userId: e.target.value }))}
+                  className="input-base"
+                >
+                  <option value="">Select User...</option>
+                  {allUsers.map(u => <option key={u._id} value={u._id}>{u.name} (@{u.username})</option>)}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-neutral-400">Badge/Award Title</label>
+                <input
+                  required
+                  value={customForm.badgeName}
+                  onChange={e => setCustomForm(f => ({ ...f, badgeName: e.target.value }))}
+                  placeholder="e.g. Community Champ, Dev Advocate"
+                  className="input-base"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-neutral-400">Contribution Platforms</label>
+                <div className="flex flex-wrap gap-2">
+                  {['Website', 'WhatsApp', 'Discord', 'LinkedIn'].map(p => {
+                    const isSelected = customForm.platforms.includes(p)
+                    return (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => togglePlatform(p)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors ${isSelected ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-white/5 border-white/10 text-neutral-400'}`}
+                      >
+                        {p === 'Website' && <Globe size={11} />}
+                        {p === 'WhatsApp' && <MessageSquare size={11} />}
+                        {p === 'Discord' && <MessageSquare size={11} />}
+                        {p === 'LinkedIn' && <Linkedin size={11} />}
+                        {p}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-neutral-400">Contribution Details</label>
+                <textarea
+                  value={customForm.contribution}
+                  onChange={e => setCustomForm(f => ({ ...f, contribution: e.target.value }))}
+                  placeholder="Describe what they contributed..."
+                  rows={3}
+                  className="input-base"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-neutral-400">Theme Color (Hex)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={customForm.themeColor}
+                      onChange={e => setCustomForm(f => ({ ...f, themeColor: e.target.value }))}
+                      className="w-10 h-10 rounded border border-white/10 bg-transparent cursor-pointer"
+                    />
+                    <input
+                      required
+                      value={customForm.themeColor}
+                      onChange={e => setCustomForm(f => ({ ...f, themeColor: e.target.value }))}
+                      className="input-base flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-neutral-400">Congratulations Msg</label>
+                  <input
+                    value={customForm.customMessage}
+                    onChange={e => setCustomForm(f => ({ ...f, customMessage: e.target.value }))}
+                    placeholder="e.g. Keep inspiring others!"
+                    className="input-base"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-2">
+                <button type="button" onClick={() => setShowCustomModal(false)} className="btn-ghost text-sm">Cancel</button>
+                <button type="submit" disabled={submitting} className="btn-primary text-sm">
+                  {submitting ? 'Generating...' : 'Issue Certificate'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ── Edit Certificate Modal ──────────────────────────────────────── */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass rounded-2xl p-6 w-full max-w-md relative"
+          >
+            <button onClick={() => setShowEditModal(false)} className="absolute top-4 right-4 text-neutral-500 hover:text-white"><X size={18} /></button>
+            <h2 className="text-lg font-bold text-white mb-4">Edit Certificate Appearance</h2>
+            <form onSubmit={submitEditCertificate} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-neutral-400">Badge Title</label>
+                <input
+                  required
+                  value={editForm.badgeName}
+                  onChange={e => setEditForm(f => ({ ...f, badgeName: e.target.value }))}
+                  className="input-base"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-neutral-400">Theme Color</label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={editForm.themeColor}
+                    onChange={e => setEditForm(f => ({ ...f, themeColor: e.target.value }))}
+                    className="w-10 h-10 rounded border border-white/10 bg-transparent cursor-pointer"
+                  />
+                  <input
+                    required
+                    value={editForm.themeColor}
+                    onChange={e => setEditForm(f => ({ ...f, themeColor: e.target.value }))}
+                    className="input-base flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-neutral-400">Custom Message</label>
+                <input
+                  value={editForm.customMessage}
+                  onChange={e => setEditForm(f => ({ ...f, customMessage: e.target.value }))}
+                  className="input-base"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-2">
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn-ghost text-sm">Cancel</button>
+                <button type="submit" disabled={submitting} className="btn-primary text-sm">
+                  {submitting ? 'Updating...' : 'Save & Render'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

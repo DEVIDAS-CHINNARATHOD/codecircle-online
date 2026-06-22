@@ -146,7 +146,7 @@ export default function Dashboard() {
   // ── Derived values ────────────────────────────────────────────────────────
   const currentMonth = badgeData?.currentMonth
   const myRank       = leaderboard.findIndex(e => String(e.userId) === String(user?._id)) + 1 || null
-  const profileUrl   = user ? `${window.location.origin}/u/${user._id}` : ''
+  const profileUrl   = user ? `${window.location.origin}/u/${user.username || user._id}` : ''
 
   // Progress bar toward next badge
   const count        = currentMonth?.resourceCount || 0
@@ -238,9 +238,9 @@ export default function Dashboard() {
               />
             </div>
             <div className="flex justify-between text-xs text-neutral-700">
-              <span className="flex items-center gap-1"><Zap size={10} /> 1 CodeSpark</span>
-              <span className="flex items-center gap-1"><Flame size={10} /> 5 CodeFlame</span>
-              <span className="flex items-center gap-1"><Crown size={10} /> 10 CodeElite</span>
+              <span className="flex items-center gap-1"><Zap size={10} /> 1 Spark</span>
+              <span className="flex items-center gap-1"><Flame size={10} /> 5 Catalyst</span>
+              <span className="flex items-center gap-1"><Crown size={10} /> 10 Titan</span>
             </div>
           </div>
 
@@ -257,7 +257,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-sm text-neutral-500 py-2">
-              No badges yet. Share your first resource to earn the <span className="text-violet-400">⚡ CodeSpark</span> badge!
+              No badges yet. Share your first resource to earn the <span className="text-violet-400">⚡ Spark</span> badge!
             </div>
           )}
 

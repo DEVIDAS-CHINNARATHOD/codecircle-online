@@ -2,8 +2,9 @@ import { motion } from 'framer-motion'
 
 const TIER_META = {
   codespark: {
-    label: 'CodeSpark',
+    label: 'Spark',
     icon: '⚡',
+    iconUrl: '/assets/badge_spark.png',
     color: 'text-violet-400',
     border: 'border-violet-500/40',
     glow: 'shadow-[0_0_20px_rgba(139,92,246,0.2)]',
@@ -11,8 +12,9 @@ const TIER_META = {
     desc: '1+ resources shared this month',
   },
   codeflame: {
-    label: 'CodeFlame',
+    label: 'Catalyst',
     icon: '🔥',
+    iconUrl: '/assets/badge_catalyst.png',
     color: 'text-orange-400',
     border: 'border-orange-500/40',
     glow: 'shadow-[0_0_20px_rgba(249,115,22,0.2)]',
@@ -20,8 +22,9 @@ const TIER_META = {
     desc: '5+ resources shared this month',
   },
   codeelite: {
-    label: 'CodeElite',
+    label: 'Titan',
     icon: '👑',
+    iconUrl: '/assets/badge_titan.png',
     color: 'text-yellow-400',
     border: 'border-yellow-500/40',
     glow: 'shadow-[0_0_20px_rgba(234,179,8,0.2)]',
@@ -49,7 +52,12 @@ export default function BadgeCard({ tier, month, year, count, compact = false })
   if (compact) {
     return (
       <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${meta.bg} ${meta.border} ${meta.color}`}>
-        <span>{meta.icon}</span> {meta.label}
+        {meta.iconUrl ? (
+          <img src={meta.iconUrl} className="w-4 h-4 object-contain" alt={meta.label} />
+        ) : (
+          <span>{meta.icon}</span>
+        )}
+        <span>{meta.label}</span>
       </div>
     )
   }
@@ -62,7 +70,11 @@ export default function BadgeCard({ tier, month, year, count, compact = false })
       transition={{ duration: 0.25 }}
       className={`rounded-2xl border p-5 flex flex-col items-center text-center gap-2 ${meta.bg} ${meta.border} ${meta.glow}`}
     >
-      <div className="text-4xl">{meta.icon}</div>
+      {meta.iconUrl ? (
+        <img src={meta.iconUrl} className="w-20 h-20 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.15)] mb-2" alt={meta.label} />
+      ) : (
+        <div className="text-4xl mb-2">{meta.icon}</div>
+      )}
       <div className={`text-base font-bold ${meta.color}`}>{meta.label}</div>
       <div className="text-xs text-neutral-500">{monthName} {year}</div>
       {count > 0 && (
