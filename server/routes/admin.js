@@ -7,6 +7,7 @@ const Certificate = require('../models/Certificate')
 const { auth, adminOnly } = require('../middleware/auth')
 const { createCanvas, loadImage } = require('@napi-rs/canvas')
 const QRCode = require('qrcode')
+const clientUrl = (process.env.CLIENT_URL || 'https://codecircle.online').replace(/\/+$/, '')
 
 // ─── Tier definitions ─────────────────────────────────────────────────────────
 const TIERS = [
@@ -21,7 +22,7 @@ const SIGNATURE_PATH = path.join(__dirname, '../assets/founder_signature.png')
 
 // ─── Certificate canvas generator ────────────────────────────────────────────
 async function generateCertificateImage({
-  userName, badgeName, tier, month, year,
+  userName, username, badgeName, tier, month, year,
   resourceCount, themeColor, customMessage,
   isCustom, platforms, contribution, certId,
 }) {
@@ -106,6 +107,12 @@ async function generateCertificateImage({
   ctx.font      = 'bold 54px sans-serif'
   ctx.fillText(userName, W / 2, 308)
 
+  if (username) {
+    ctx.fillStyle = `${color}AA`
+    ctx.font      = '15px sans-serif'
+    ctx.fillText(`@${username}`, W / 2, 336)
+  }
+
   // Name underline
   const nameW = ctx.measureText(userName).width
   ctx.strokeStyle = `${color}88`
@@ -122,7 +129,7 @@ async function generateCertificateImage({
   if (isCustom) {
     const platformStr = (platforms || []).join(', ') || 'multiple platforms'
     ctx.fillText(
-      `for outstanding contributions to the CodeCircle community via ${platformStr}`,
+      `for outstanding contributions to the CodeCircle community through ${platformStr}`,
       W / 2, 358
     )
     if (contribution) {
@@ -148,7 +155,8 @@ async function generateCertificateImage({
     )
     ctx.fillStyle = '#7777AA'
     ctx.font      = '13px sans-serif'
-    ctx.fillText('Thank you for your valuable contributions — you make this community stronger! 🚀', W / 2, 384)
+    ctx.fillText('Congratulations and thank you for your valuable contribution to student learning.', W / 2, 384)
+    ctx.fillText('Your shared knowledge helps the CodeCircle community grow stronger together.', W / 2, 406)
   }
 
   // ── Badge pill ─────────────────────────────────────────────────────────────
@@ -250,7 +258,7 @@ async function generateCertificateImage({
     ctx.fillStyle = '#DDDDEE'
     ctx.font      = 'italic 22px sans-serif'
     ctx.textAlign = 'left'
-    ctx.fillText('Devidas C.R.', sigX, sigY + 40)
+    ctx.fillText('DEVIDAS CHINNARATHOD', sigX, sigY + 40)
   }
 
   // Signature line
@@ -261,14 +269,14 @@ async function generateCertificateImage({
   ctx.textAlign = 'left'
   ctx.fillStyle = '#888'
   ctx.font      = '11px sans-serif'
-  ctx.fillText('Devidas Chinnarathod', sigX - 20, sigY + 90)
+  ctx.fillText('DEVIDAS CHINNARATHOD', sigX - 20, sigY + 90)
   ctx.fillStyle = `${color}99`
   ctx.font      = '10px sans-serif'
-  ctx.fillText('Founder, CodeCircle', sigX - 20, sigY + 104)
+  ctx.fillText('Founder, CodeCircle Community', sigX - 20, sigY + 104)
 
   // ── QR Code (right) ────────────────────────────────────────────────────────
   ctx.textAlign = 'center'
-  const qrVerifyUrl = `https://codecircle.online/verify/${certId || 'preview'}`
+  const qrVerifyUrl = `${clientUrl}/verify/${certId || 'preview'}`
   try {
     const qrDataUrl = await QRCode.toDataURL(qrVerifyUrl, {
       width: 90, margin: 1,
@@ -286,7 +294,7 @@ async function generateCertificateImage({
   ctx.textAlign = 'center'
   ctx.fillStyle = '#555577'
   ctx.font      = '11px sans-serif'
-  ctx.fillText(`Issued: ${monthName} ${year}  ·  codecircle.online`, W / 2, 670)
+  ctx.fillText(`Issued: ${monthName} ${year}  ·  ${clientUrl.replace(/^https?:\/\//, '')}`, W / 2, 670)
 
   // Certificate ID
   ctx.fillStyle = '#333355'
@@ -379,6 +387,7 @@ router.post('/certificates/generate', auth, adminOnly, async (req, res) => {
 
     const imageData = await generateCertificateImage({
       userName: user.name,
+      username: user.username,
       badgeName: tierDef.badgeName,
       tier: tierDef.tier,
       month, year, resourceCount,
@@ -410,7 +419,7 @@ router.post('/certificates/generate', auth, adminOnly, async (req, res) => {
 router.put('/certificates/:id/edit', auth, adminOnly, async (req, res) => {
   try {
     const { badgeName, themeColor, customMessage } = req.body
-    const cert = await Certificate.findById(req.params.id).populate('userId', 'name')
+    const cert = await Certificate.findById(req.params.id).populate('userId', 'name username')
     if (!cert) return res.status(404).json({ error: 'Not found' })
 
     if (badgeName)     cert.badgeName     = badgeName
@@ -420,6 +429,7 @@ router.put('/certificates/:id/edit', auth, adminOnly, async (req, res) => {
     // Re-render certificate image
     const imageData = await generateCertificateImage({
       userName:      cert.userId.name,
+      username:      cert.userId.username,
       badgeName:     cert.badgeName,
       tier:          cert.tier,
       month:         cert.month,
@@ -468,7 +478,7 @@ router.post('/certificates/custom', auth, adminOnly, async (req, res) => {
     })
 
     const imageData = await generateCertificateImage({
-      userName: user.name, badgeName, tier: 'custom',
+      userName: user.name, username: user.username, badgeName, tier: 'custom',
       month, year, resourceCount: 0,
       themeColor: themeColor || '#5B8CFF',
       customMessage: customMessage || null,

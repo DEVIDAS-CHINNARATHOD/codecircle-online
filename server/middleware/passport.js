@@ -11,11 +11,11 @@ if (!serverUrl) throw new Error('SERVER_URL is required')
  * If it collides, append a short random suffix.
  */
 async function generateUsername(displayName) {
-  const base = displayName
+  const base = (displayName || 'codecircle_user')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
-    .slice(0, 24)
+    .slice(0, 24) || 'codecircle_user'
 
   let candidate = base
   let attempt   = 0
@@ -31,6 +31,9 @@ async function generateUsername(displayName) {
   return `${base}_${Date.now().toString(36)}`
 }
 
+const isDuplicateUsernameError = (err) =>
+  err?.code === 11000 && (err.keyPattern?.username || err.keyValue?.username)
+
 passport.use(
   new GoogleStrategy(
     {
@@ -44,15 +47,22 @@ passport.use(
 
         if (!user) {
           const count    = await User.countDocuments()
-          const username = await generateUsername(profile.displayName)
-          user = await User.create({
-            googleId: profile.id,
-            name:     profile.displayName,
-            username,
-            email:    profile.emails[0].value,
-            avatar:   profile.photos[0]?.value,
-            isAdmin:  count === 0,
-          })
+          for (let attempt = 0; attempt < 5; attempt++) {
+            const username = await generateUsername(profile.displayName)
+            try {
+              user = await User.create({
+                googleId: profile.id,
+                name:     profile.displayName,
+                username,
+                email:    profile.emails[0].value,
+                avatar:   profile.photos[0]?.value,
+                isAdmin:  count === 0,
+              })
+              break
+            } catch (err) {
+              if (!isDuplicateUsernameError(err) || attempt === 4) throw err
+            }
+          }
         } else if (!user.username) {
           // Back-fill username for existing users who signed up before this feature
           user.username = await generateUsername(user.name)

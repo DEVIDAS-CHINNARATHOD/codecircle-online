@@ -71,6 +71,7 @@ export default function VerifyCertificate() {
   }
 
   const meta = TIER_META[data.tier] || TIER_META.custom
+  const profileSlug = data.username || data.userId
 
   return (
     <div className="min-h-screen pt-28 pb-24 px-6 relative overflow-hidden">
@@ -125,9 +126,9 @@ export default function VerifyCertificate() {
             )}
             <div>
               <h2 className="text-lg font-bold text-white">{data.userName}</h2>
-              {data.username ? (
-                <Link to={`/u/${data.username}`} className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 mt-0.5 transition-colors">
-                  @{data.username} <ExternalLink size={10} />
+              {profileSlug ? (
+                <Link to={`/u/${profileSlug}`} className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 mt-0.5 transition-colors">
+                  {data.username ? `@${data.username}` : 'View public profile'} <ExternalLink size={10} />
                 </Link>
               ) : (
                 <span className="text-xs text-neutral-500">CodeCircle Contributor</span>

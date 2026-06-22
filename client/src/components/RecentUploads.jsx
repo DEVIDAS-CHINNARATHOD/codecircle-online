@@ -3,8 +3,10 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Calendar, Link2, User, Grid } from 'lucide-react'
 import axios from 'axios'
 import { getApiBase } from '../lib/utils'
+import { CATEGORIES } from './CategoriesSection'
 
 const API = getApiBase()
+const getCategory = (slug) => CATEGORIES.find(category => category.slug === slug)
 
 export default function RecentUploads() {
   const [resources, setResources] = useState([])
@@ -39,7 +41,7 @@ export default function RecentUploads() {
             <h2 className="heading-lg text-white">Latest resources shared</h2>
           </div>
           <div className="flex items-center gap-3">
-            {limit !== 'all' && resources.length < total && (
+            {limit !== 'all' && total > 0 && (
               <button
                 onClick={() => setLimit('all')}
                 className="btn-primary text-sm flex items-center gap-2"
@@ -65,7 +67,9 @@ export default function RecentUploads() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {resources.map((resource, i) => (
+            {resources.map((resource, i) => {
+              const category = getCategory(resource.category)
+              return (
               <motion.a
                 key={resource._id}
                 href={resource.link}
@@ -84,9 +88,10 @@ export default function RecentUploads() {
                     <div className="w-full h-40 bg-white/5" />
                   )}
                   <div className="p-5">
-                    {resource.category && (
-                      <span className="label-text mb-2 block text-violet-400 font-semibold tracking-wider uppercase text-[10px]">
-                        {resource.category}
+                    {category && (
+                      <span className="mb-2 flex items-center gap-2 font-semibold tracking-wider uppercase text-[10px]" style={{ color: category.accent }}>
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: category.accent }} />
+                        {category.title}
                       </span>
                     )}
                     <h3 className="font-medium text-white text-base mb-2 line-clamp-2">{resource.title}</h3>
@@ -110,11 +115,12 @@ export default function RecentUploads() {
                   </div>
                 </div>
               </motion.a>
-            ))}
+              )
+            })}
           </div>
         )}
 
-        {limit !== 'all' && resources.length < total && (
+        {limit !== 'all' && total > 0 && (
           <div className="mt-8 text-center sm:hidden">
             <button
               onClick={() => setLimit('all')}

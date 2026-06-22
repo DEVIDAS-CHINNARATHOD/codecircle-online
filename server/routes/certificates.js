@@ -48,6 +48,7 @@ router.get('/:id/verify', async (req, res) => {
       valid: true,
       cert: {
         _id: cert._id,
+        userId: cert.userId?._id,
         userName: cert.userId?.name || 'Unknown User',
         userAvatar: cert.userId?.avatar,
         username: cert.userId?.username,

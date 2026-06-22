@@ -7,13 +7,13 @@ export const CATEGORIES = [
     slug: 'trending-tech',
     title: 'Trending Tech',
     description: 'Stay updated with the latest technological trends and innovations shaping the industry.',
-    accent: '#ffffff',
+    accent: '#38bdf8',
   },
   {
     slug: 'internships',
     title: 'Internships',
     description: 'Discover internship opportunities from top companies worldwide, curated for students.',
-    accent: '#a3a3a3',
+    accent: '#f59e0b',
   },
   {
     slug: 'ai-ml',
@@ -25,7 +25,7 @@ export const CATEGORIES = [
     slug: 'linux',
     title: 'Linux',
     description: 'Master Linux systems, commands, shell scripting, and administration skills from scratch.',
-    accent: '#d1d5db',
+    accent: '#22c55e',
   },
   {
     slug: 'cybersecurity',
@@ -49,7 +49,7 @@ export const CATEGORIES = [
     slug: 'projects-hackathons',
     title: 'Projects & Hackathons',
     description: 'Participate in exciting projects and competitive hackathons to grow your portfolio.',
-    accent: '#fde68a',
+    accent: '#fb7185',
   },
 ]
 
