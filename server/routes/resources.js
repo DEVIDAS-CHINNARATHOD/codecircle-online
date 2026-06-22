@@ -60,6 +60,20 @@ router.get('/mine', auth, async (req, res) => {
   }
 })
 
+// GET /api/resources/:id - public resource detail
+router.get('/:id', cacheMiddleware(600), async (req, res) => {
+  try {
+    const resource = await Resource.findById(req.params.id)
+      .populate('submittedBy', 'name avatar username')
+
+    if (!resource) return res.status(404).json({ error: 'Not found' })
+
+    res.json(resource)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // PUT /api/resources/:id — owner or admin
 router.put('/:id', auth, bustCache(RESOURCES_PATTERN), async (req, res) => {
   try {

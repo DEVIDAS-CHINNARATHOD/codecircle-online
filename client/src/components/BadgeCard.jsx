@@ -4,7 +4,7 @@ const TIER_META = {
   codespark: {
     label: 'Spark',
     icon: '⚡',
-    iconUrl: '/assets/badge_spark.png',
+    iconUrl: '/assets/badge_spark.jpg',
     color: 'text-violet-400',
     border: 'border-violet-500/40',
     glow: 'shadow-[0_0_20px_rgba(139,92,246,0.2)]',
@@ -14,7 +14,7 @@ const TIER_META = {
   codeflame: {
     label: 'Catalyst',
     icon: '🔥',
-    iconUrl: '/assets/badge_catalyst.png',
+    iconUrl: '/assets/badge_catalyst.jpg',
     color: 'text-orange-400',
     border: 'border-orange-500/40',
     glow: 'shadow-[0_0_20px_rgba(249,115,22,0.2)]',
@@ -24,7 +24,7 @@ const TIER_META = {
   codeelite: {
     label: 'Titan',
     icon: '👑',
-    iconUrl: '/assets/badge_titan.png',
+    iconUrl: '/assets/badge_titan.jpg',
     color: 'text-yellow-400',
     border: 'border-yellow-500/40',
     glow: 'shadow-[0_0_20px_rgba(234,179,8,0.2)]',

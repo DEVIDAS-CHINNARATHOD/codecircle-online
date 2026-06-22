@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Github, Link2, Sparkles, Trophy, Upload, X } from 'lucide-react'
 import axios from 'axios'
@@ -132,16 +133,14 @@ function FameModal({ open, onClose, title, subtitle, items, type }) {
                         ) : (
                           <div className="mt-3 space-y-2">
                             {item.resources.map((resource, resourceIndex) => (
-                              <a
-                                key={`${resource.link}-${resourceIndex}`}
-                                href={resource.link}
-                                target="_blank"
-                                rel="noreferrer"
+                              <Link
+                                key={`${resource.id}-${resourceIndex}`}
+                                to={`/resources/${resource.id}`}
                                 className="flex items-center gap-2 text-sm text-neutral-400 transition-colors hover:text-white"
                               >
                                 <Link2 size={13} className="shrink-0" />
                                 <span className="truncate">{resource.title}</span>
-                              </a>
+                              </Link>
                             ))}
                           </div>
                         )}
@@ -195,6 +194,7 @@ export default function HallOfFame() {
 
           existing.count += 1
           existing.resources.push({
+            id: resource._id,
             title: resource.title,
             link: resource.link,
           })

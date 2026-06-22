@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Calendar, Link2, User, Grid } from 'lucide-react'
 import axios from 'axios'
@@ -70,51 +71,52 @@ export default function RecentUploads() {
             {resources.map((resource, i) => {
               const category = getCategory(resource.category)
               return (
-              <motion.a
+              <motion.div
                 key={resource._id}
-                href={resource.link}
-                target="_blank"
-                rel="noreferrer"
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.03, duration: 0.4 }}
-                className="group glass rounded-2xl overflow-hidden hover:border-white/20 transition-all flex flex-col justify-between"
               >
-                <div>
-                  {resource.image ? (
-                    <img src={resource.image} alt={resource.title} className="w-full h-40 object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                  ) : (
-                    <div className="w-full h-40 bg-white/5" />
-                  )}
-                  <div className="p-5">
-                    {category && (
-                      <span className="mb-2 flex items-center gap-2 font-semibold tracking-wider uppercase text-[10px]" style={{ color: category.accent }}>
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: category.accent }} />
-                        {category.title}
-                      </span>
+                <Link
+                  to={`/resources/${resource._id}`}
+                  className="group glass rounded-2xl overflow-hidden hover:border-white/20 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    {resource.image ? (
+                      <img src={resource.image} alt={resource.title} className="w-full h-40 object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                    ) : (
+                      <div className="w-full h-40 bg-white/5" />
                     )}
-                    <h3 className="font-medium text-white text-base mb-2 line-clamp-2">{resource.title}</h3>
-                    <p className="text-sm text-neutral-500 line-clamp-2">{resource.description}</p>
+                    <div className="p-5">
+                      {category && (
+                        <span className="mb-2 flex items-center gap-2 font-semibold tracking-wider uppercase text-[10px]" style={{ color: category.accent }}>
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: category.accent }} />
+                          {category.title}
+                        </span>
+                      )}
+                      <h3 className="font-medium text-white text-base mb-2 line-clamp-2">{resource.title}</h3>
+                      <p className="text-sm text-neutral-500 line-clamp-2">{resource.description}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="p-5 pt-0 mt-auto">
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-700">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={10} />
-                      {new Date(resource.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <span className="flex items-center gap-1 min-w-0">
-                      <User size={10} />
-                      <span className="truncate">{resource.submittedBy?.name || 'Contributor'}</span>
-                    </span>
-                    <span className="flex items-center gap-1 truncate text-violet-400/80 group-hover:text-violet-400">
-                      <Link2 size={10} />
-                      Link
-                    </span>
+                  <div className="p-5 pt-0 mt-auto">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-700">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={10} />
+                        {new Date(resource.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <span className="flex items-center gap-1 min-w-0">
+                        <User size={10} />
+                        <span className="truncate">{resource.submittedBy?.name || 'Contributor'}</span>
+                      </span>
+                      <span className="flex items-center gap-1 truncate text-violet-400/80 group-hover:text-violet-400">
+                        <Link2 size={10} />
+                        Open details
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </motion.a>
+                </Link>
+              </motion.div>
               )
             })}
           </div>

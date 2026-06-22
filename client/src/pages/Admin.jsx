@@ -13,9 +13,9 @@ const API = getApiBase()
 const TABS = ['Posts', 'Resources', 'Users', 'Certificates']
 
 const TIER_META = {
-  codespark:  { label: 'Spark',     color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/30',  icon: '⚡', iconUrl: '/assets/badge_spark.png' },
-  codeflame:  { label: 'Catalyst',  color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',  icon: '🔥', iconUrl: '/assets/badge_catalyst.png' },
-  codeelite:  { label: 'Titan',     color: 'text-yellow-400',  bg: 'bg-yellow-500/10 border-yellow-500/30',  icon: '👑', iconUrl: '/assets/badge_titan.png' },
+  codespark:  { label: 'Spark',     color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/30',  icon: '⚡', iconUrl: '/assets/badge_spark.jpg' },
+  codeflame:  { label: 'Catalyst',  color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',  icon: '🔥', iconUrl: '/assets/badge_catalyst.jpg' },
+  codeelite:  { label: 'Titan',     color: 'text-yellow-400',  bg: 'bg-yellow-500/10 border-yellow-500/30',  icon: '👑', iconUrl: '/assets/badge_titan.jpg' },
   custom:     { label: 'Custom',    color: 'text-blue-400',    bg: 'bg-blue-500/10 border-blue-500/30',      icon: '✨' },
 }
 

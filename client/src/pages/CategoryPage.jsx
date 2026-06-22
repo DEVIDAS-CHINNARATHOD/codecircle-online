@@ -102,7 +102,7 @@ export default function CategoryPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {resources.map((res, i) => (
                     <motion.div key={res._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
-                      <a href={res.link} target="_blank" rel="noreferrer" className="group glass rounded-xl p-5 flex gap-4 hover:border-white/20 transition-all">
+                      <Link to={`/resources/${res._id}`} className="group glass rounded-xl p-5 flex gap-4 hover:border-white/20 transition-all">
                         {res.image && <img src={res.image} alt={res.title} className="w-16 h-16 rounded-lg object-cover shrink-0 opacity-80 group-hover:opacity-100 transition-opacity" />}
                         <div className="min-w-0">
                           <span className="mb-2 inline-flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: category.accent }}>
@@ -113,7 +113,7 @@ export default function CategoryPage() {
                           <p className="text-xs text-neutral-500 line-clamp-2">{res.description}</p>
                           <span className="mt-2 inline-block text-xs text-neutral-700 font-mono">{res.link ? getHostname(res.link) : ''}</span>
                         </div>
-                      </a>
+                      </Link>
                     </motion.div>
                   ))}
                 </div>

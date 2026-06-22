@@ -18,7 +18,27 @@ const TIERS = [
 const resolveTier = (count) => TIERS.find(t => count >= t.min) || null
 
 // Founder signature path
-const SIGNATURE_PATH = path.join(__dirname, '../assets/founder_signature.png')
+const SIGNATURE_PATH = path.join(__dirname, '../assets/founder_signature1.png')
+
+function wrapCenteredText(ctx, text, x, startY, maxWidth, lineHeight) {
+  const words = String(text || '').split(/\s+/).filter(Boolean)
+  let line = ''
+  let y = startY
+
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, y)
+      line = word
+      y += lineHeight
+    } else {
+      line = testLine
+    }
+  }
+
+  if (line) ctx.fillText(line, x, y)
+  return y
+}
 
 // ─── Certificate canvas generator ────────────────────────────────────────────
 async function generateCertificateImage({
@@ -26,280 +46,241 @@ async function generateCertificateImage({
   resourceCount, themeColor, customMessage,
   isCustom, platforms, contribution, certId,
 }) {
-  const W = 1200, H = 850
+  const W = 1280
+  const H = 900
   const canvas = createCanvas(W, H)
-  const ctx    = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d')
 
-  const color = themeColor ||
-    (tier === 'codeelite' ? '#FFD700' :
-     tier === 'codeflame' ? '#FF6B35' :
-     tier === 'codespark' ? '#7B61FF' : '#5B8CFF')
+  const palettes = {
+    codeelite: { accent: '#8C6B2E', soft: '#E7D8B1' },
+    codeflame: { accent: '#7A5C43', soft: '#E8D8C7' },
+    codespark: { accent: '#486581', soft: '#D8E2EA' },
+    custom: { accent: '#5F6C7B', soft: '#DCE2E8' },
+  }
+  const palette = palettes[tier] || palettes.custom
+  const accent = themeColor || palette.accent
+  const softAccent = palette.soft
+  const ink = '#1F2933'
+  const mutedInk = '#52606D'
+  const paper = '#F5F1E8'
+  const paperShade = '#EDE4D3'
 
   const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
+  const qrVerifyUrl = `${clientUrl}/verify/${certId || 'preview'}`
 
-  // ── Background ─────────────────────────────────────────────────────────────
   const bg = ctx.createLinearGradient(0, 0, W, H)
-  bg.addColorStop(0,   '#08080F')
-  bg.addColorStop(0.5, '#0E0E1C')
-  bg.addColorStop(1,   '#08080F')
-  ctx.fillStyle = bg
+  bg.addColorStop(0, paper)
+  bg.addColorStop(1, paperShade)
   ctx.fillRect(0, 0, W, H)
 
-  // Corner decorations
-  const cornerSize = 60
-  const corners = [[0,0],[W,0],[0,H],[W,H]]
-  corners.forEach(([cx, cy]) => {
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cornerSize * 2)
-    grad.addColorStop(0, `${color}22`)
-    grad.addColorStop(1, 'transparent')
-    ctx.fillStyle = grad
-    ctx.fillRect(0, 0, W, H)
-  })
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillRect(40, 40, W - 80, H - 80)
 
-  // ── Outer border ───────────────────────────────────────────────────────────
-  ctx.strokeStyle = color
-  ctx.lineWidth   = 5
-  ctx.strokeRect(20, 20, W - 40, H - 40)
+  ctx.strokeStyle = accent
+  ctx.lineWidth = 3
+  ctx.strokeRect(40, 40, W - 80, H - 80)
 
-  // Inner border
-  ctx.strokeStyle = `${color}44`
-  ctx.lineWidth   = 1
-  ctx.strokeRect(32, 32, W - 64, H - 64)
+  ctx.strokeStyle = '#C7B79A'
+  ctx.lineWidth = 1
+  ctx.strokeRect(56, 56, W - 112, H - 112)
 
-  // ── Header strip ───────────────────────────────────────────────────────────
-  ctx.fillStyle = `${color}18`
-  ctx.fillRect(32, 32, W - 64, 90)
+  ctx.fillStyle = softAccent
+  ctx.fillRect(56, 56, W - 112, 92)
 
-  // ── Logo / Title ───────────────────────────────────────────────────────────
   ctx.textAlign = 'center'
-  ctx.fillStyle = color
-  ctx.font      = 'bold 22px sans-serif'
-  ctx.fillText('⭕  C O D E C I R C L E', W / 2, 72)
+  ctx.fillStyle = ink
+  ctx.font = 'bold 24px serif'
+  ctx.fillText('CODECIRCLE COMMUNITY', W / 2, 96)
 
-  ctx.fillStyle = `${color}AA`
-  ctx.font      = '11px sans-serif'
-  ctx.fillText('Community · Learning · Growth', W / 2, 96)
+  ctx.fillStyle = mutedInk
+  ctx.font = '13px serif'
+  ctx.fillText('Learning  •  Sharing  •  Growth', W / 2, 122)
 
-  // Subtitle
-  ctx.fillStyle = '#FFFFFF'
-  ctx.font      = '13px sans-serif'
-  ctx.letterSpacing = '4px'
-  ctx.fillText('CERTIFICATE  OF  ACHIEVEMENT', W / 2, 152)
-  ctx.letterSpacing = '0px'
+  ctx.fillStyle = accent
+  ctx.font = 'bold 15px serif'
+  ctx.fillText('CERTIFICATE OF ACHIEVEMENT', W / 2, 204)
 
-  // Thin divider
-  ctx.strokeStyle = `${color}66`
-  ctx.lineWidth   = 0.8
-  ctx.beginPath(); ctx.moveTo(W/2 - 220, 168); ctx.lineTo(W/2 + 220, 168); ctx.stroke()
-
-  // ── Congratulations ────────────────────────────────────────────────────────
-  ctx.fillStyle = `${color}CC`
-  ctx.font      = 'italic 15px sans-serif'
-  ctx.fillText('Congratulations!', W / 2, 205)
-
-  // "This certifies that"
-  ctx.fillStyle = '#8888AA'
-  ctx.font      = '14px sans-serif'
-  ctx.fillText('This certificate is proudly presented to', W / 2, 238)
-
-  // ── Recipient Name ─────────────────────────────────────────────────────────
-  ctx.fillStyle = '#FFFFFF'
-  ctx.font      = 'bold 54px sans-serif'
-  ctx.fillText(userName, W / 2, 308)
-
-  if (username) {
-    ctx.fillStyle = `${color}AA`
-    ctx.font      = '15px sans-serif'
-    ctx.fillText(`@${username}`, W / 2, 336)
-  }
-
-  // Name underline
-  const nameW = ctx.measureText(userName).width
-  ctx.strokeStyle = `${color}88`
-  ctx.lineWidth   = 1.5
+  ctx.strokeStyle = '#CDBD9E'
+  ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(W/2 - nameW/2, 320)
-  ctx.lineTo(W/2 + nameW/2, 320)
+  ctx.moveTo(W / 2 - 210, 220)
+  ctx.lineTo(W / 2 + 210, 220)
   ctx.stroke()
 
-  // ── Contribution text ──────────────────────────────────────────────────────
-  ctx.fillStyle = '#9999BB'
-  ctx.font      = '15px sans-serif'
+  ctx.fillStyle = mutedInk
+  ctx.font = 'italic 20px serif'
+  ctx.fillText('Presented with appreciation to', W / 2, 274)
+
+  ctx.fillStyle = ink
+  ctx.font = 'bold 54px serif'
+  ctx.fillText(userName, W / 2, 348)
+
+  if (username) {
+    ctx.fillStyle = mutedInk
+    ctx.font = '16px sans-serif'
+    ctx.fillText(`@${username}`, W / 2, 378)
+  }
+
+  const nameW = ctx.measureText(userName).width
+  ctx.strokeStyle = accent
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(W / 2 - nameW / 2, 392)
+  ctx.lineTo(W / 2 + nameW / 2, 392)
+  ctx.stroke()
+
+  ctx.fillStyle = mutedInk
+  ctx.font = '18px serif'
 
   if (isCustom) {
     const platformStr = (platforms || []).join(', ') || 'multiple platforms'
-    ctx.fillText(
-      `for outstanding contributions to the CodeCircle community through ${platformStr}`,
-      W / 2, 358
+    let bodyY = wrapCenteredText(
+      ctx,
+      `For outstanding contributions to the CodeCircle community through ${platformStr}.`,
+      W / 2,
+      450,
+      W - 280,
+      28
     )
     if (contribution) {
-      ctx.fillStyle = '#7777AA'
-      ctx.font = '13px sans-serif'
-      // word-wrap the contribution text
-      const words = contribution.split(' ')
-      let line = '', lineY = 384
-      words.forEach(word => {
-        const test = line ? `${line} ${word}` : word
-        if (ctx.measureText(test).width > W - 200) {
-          ctx.fillText(line, W / 2, lineY)
-          line  = word
-          lineY += 20
-        } else { line = test }
-      })
-      if (line) ctx.fillText(line, W / 2, lineY)
+      ctx.fillStyle = ink
+      ctx.font = '15px sans-serif'
+      bodyY = wrapCenteredText(ctx, contribution, W / 2, bodyY + 34, W - 320, 24)
+      if (customMessage) bodyY += 10
     }
   } else {
-    ctx.fillText(
-      `for sharing ${resourceCount} resource${resourceCount !== 1 ? 's' : ''} with the CodeCircle community in ${monthName} ${year}`,
-      W / 2, 358
+    wrapCenteredText(
+      ctx,
+      `For sharing ${resourceCount} resource${resourceCount !== 1 ? 's' : ''} with the CodeCircle community in ${monthName} ${year},`,
+      W / 2,
+      450,
+      W - 280,
+      28
     )
-    ctx.fillStyle = '#7777AA'
-    ctx.font      = '13px sans-serif'
-    ctx.fillText('Congratulations and thank you for your valuable contribution to student learning.', W / 2, 384)
-    ctx.fillText('Your shared knowledge helps the CodeCircle community grow stronger together.', W / 2, 406)
+    ctx.fillStyle = ink
+    ctx.font = '15px sans-serif'
+    ctx.fillText('Congratulations and thank you for helping student learning grow stronger together.', W / 2, 510)
   }
 
-  // ── Badge pill ─────────────────────────────────────────────────────────────
-  const pillW = 280, pillH = 60, pillX = W/2 - pillW/2, pillY = 420
-  ctx.fillStyle = `${color}22`
+  const pillW = 320
+  const pillH = 68
+  const pillX = W / 2 - pillW / 2
+  const pillY = 560
+  ctx.fillStyle = softAccent
   ctx.beginPath()
-  ctx.roundRect(pillX, pillY, pillW, pillH, 30)
+  ctx.roundRect(pillX, pillY, pillW, pillH, 18)
   ctx.fill()
-  ctx.strokeStyle = `${color}88`
-  ctx.lineWidth   = 1.5
+  ctx.strokeStyle = accent
+  ctx.lineWidth = 1.2
   ctx.stroke()
 
-  ctx.fillStyle = color
-  ctx.font      = 'bold 26px sans-serif'
-  ctx.fillText(badgeName, W / 2, pillY + 39)
+  ctx.fillStyle = ink
+  ctx.font = 'bold 28px serif'
+  ctx.fillText(badgeName, W / 2, pillY + 36)
 
-  ctx.fillStyle = `${color}AA`
-  ctx.font      = '11px sans-serif'
+  ctx.fillStyle = mutedInk
+  ctx.font = '12px sans-serif'
   ctx.fillText('Achievement Badge', W / 2, pillY + 56)
 
-  // ── Custom message (if any) ────────────────────────────────────────────────
   if (customMessage) {
-    ctx.fillStyle = `${color}BB`
-    ctx.font      = 'italic 13px sans-serif'
-    ctx.fillText(`"${customMessage}"`, W / 2, 510)
+    ctx.fillStyle = mutedInk
+    ctx.font = 'italic 15px serif'
+    wrapCenteredText(ctx, `"${customMessage}"`, W / 2, 670, W - 320, 24)
   }
 
-  // ── Divider ────────────────────────────────────────────────────────────────
-  ctx.strokeStyle = `${color}33`
-  ctx.lineWidth   = 1
-  ctx.beginPath(); ctx.moveTo(60, 540); ctx.lineTo(W - 60, 540); ctx.stroke()
-
-  // ── Signature section (left) ───────────────────────────────────────────────
-  const sigX = 120, sigY = 560
-
-  // Load and draw signature
+  const sigBaseX = 150
+  const sigBaseY = 720
   try {
     const sig = await loadImage(SIGNATURE_PATH)
-    
-    // Create offscreen canvas to process signature image
     const sW = sig.width
     const sH = sig.height
     const offscreen = createCanvas(sW, sH)
     const octx = offscreen.getContext('2d')
     octx.drawImage(sig, 0, 0)
-    
+
     const imgData = octx.getImageData(0, 0, sW, sH)
     const data = imgData.data
-    
-    // Convert themeColor hex to RGB
-    let rTheme = 255, gTheme = 255, bTheme = 255
-    const match = color.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
-    if (match) {
-      rTheme = parseInt(match[1], 16)
-      gTheme = parseInt(match[2], 16)
-      bTheme = parseInt(match[3], 16)
-    }
+    const match = ink.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
+    const rInk = parseInt(match[1], 16)
+    const gInk = parseInt(match[2], 16)
+    const bInk = parseInt(match[3], 16)
 
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i]
-      const g = data[i+1]
-      const b = data[i+2]
-      
+      const g = data[i + 1]
+      const b = data[i + 2]
       const brightness = (r + g + b) / 3
-      if (brightness > 200) {
-        // Light background -> fully transparent
-        data[i+3] = 0
+      if (brightness > 245) {
+        data[i + 3] = 0
       } else {
-        // Dark stroke -> change to theme color or white
-        data[i] = rTheme
-        data[i+1] = gTheme
-        data[i+2] = bTheme
-        // Map stroke opacity based on darkness
-        const opacity = Math.round((255 - brightness) * 1.5)
-        data[i+3] = Math.min(255, opacity)
+        data[i] = rInk
+        data[i + 1] = gInk
+        data[i + 2] = bInk
+        data[i + 3] = Math.max(data[i + 3], 220)
       }
     }
+
     octx.putImageData(imgData, 0, 0)
-    // Calculate aspect ratio to avoid stretching
-    const maxW = 200
-    const maxH = 80
+    const maxW = 280
+    const maxH = 88
     const ratio = sW / sH
     let drawW = maxW
     let drawH = maxW / ratio
-    
+
     if (drawH > maxH) {
       drawH = maxH
       drawW = maxH * ratio
     }
-    
-    // Center signature horizontally, bottom-align vertically in the signature space
-    const drawX = sigX + (maxW - drawW) / 2
-    const drawY = sigY + (maxH - drawH) - 10
-    
+
+    const drawX = sigBaseX
+    const drawY = sigBaseY - drawH
     ctx.drawImage(offscreen, drawX, drawY, drawW, drawH)
   } catch (err) {
     console.error('Error drawing signature:', err)
-    // Fallback text signature
-    ctx.fillStyle = '#DDDDEE'
-    ctx.font      = 'italic 22px sans-serif'
+    ctx.fillStyle = ink
+    ctx.font = 'italic 24px serif'
     ctx.textAlign = 'left'
-    ctx.fillText('DEVIDAS CHINNARATHOD', sigX, sigY + 40)
+    ctx.fillText('Devidas C. R.', sigBaseX, sigBaseY - 20)
   }
 
-  // Signature line
-  ctx.strokeStyle = `${color}66`
-  ctx.lineWidth   = 0.8
-  ctx.beginPath(); ctx.moveTo(sigX - 20, sigY + 72); ctx.lineTo(sigX + 200, sigY + 72); ctx.stroke()
+  ctx.strokeStyle = '#C7B79A'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(sigBaseX - 10, sigBaseY + 12)
+  ctx.lineTo(sigBaseX + 250, sigBaseY + 12)
+  ctx.stroke()
 
   ctx.textAlign = 'left'
-  ctx.fillStyle = '#888'
-  ctx.font      = '11px sans-serif'
-  ctx.fillText('DEVIDAS CHINNARATHOD', sigX - 20, sigY + 90)
-  ctx.fillStyle = `${color}99`
-  ctx.font      = '10px sans-serif'
-  ctx.fillText('Founder, CodeCircle Community', sigX - 20, sigY + 104)
+  ctx.fillStyle = ink
+  ctx.font = 'bold 12px sans-serif'
+  ctx.fillText('DEVIDAS CHINNARATHOD', sigBaseX - 10, sigBaseY + 34)
+  ctx.fillStyle = mutedInk
+  ctx.font = '11px sans-serif'
+  ctx.fillText('Founder, CodeCircle Community', sigBaseX - 10, sigBaseY + 54)
 
-  // ── QR Code (right) ────────────────────────────────────────────────────────
   ctx.textAlign = 'center'
-  const qrVerifyUrl = `${clientUrl}/verify/${certId || 'preview'}`
   try {
     const qrDataUrl = await QRCode.toDataURL(qrVerifyUrl, {
-      width: 90, margin: 1,
-      color: { dark: '#FFFFFF', light: '#00000000' },
+      width: 110,
+      margin: 1,
+      color: { dark: ink, light: '#FFFFFF' },
     })
     const qrImg = await loadImage(qrDataUrl)
-    const qrX = W - 160, qrY = 558
-    ctx.drawImage(qrImg, qrX, qrY, 90, 90)
-    ctx.fillStyle = '#555577'
-    ctx.font      = '9px sans-serif'
-    ctx.fillText('Scan to verify', qrX + 45, qrY + 104)
+    const qrX = W - 260
+    const qrY = 690
+    ctx.drawImage(qrImg, qrX, qrY, 110, 110)
+    ctx.fillStyle = mutedInk
+    ctx.font = '11px sans-serif'
+    ctx.fillText('Scan to verify certificate', qrX + 55, qrY + 128)
   } catch { /* QR optional */ }
 
-  // ── Issue date (center bottom) ─────────────────────────────────────────────
   ctx.textAlign = 'center'
-  ctx.fillStyle = '#555577'
-  ctx.font      = '11px sans-serif'
-  ctx.fillText(`Issued: ${monthName} ${year}  ·  ${clientUrl.replace(/^https?:\/\//, '')}`, W / 2, 670)
-
-  // Certificate ID
-  ctx.fillStyle = '#333355'
-  ctx.font      = '9px sans-serif'
-  ctx.fillText(`Certificate ID: ${certId || 'PREVIEW'}`, W / 2, 690)
+  ctx.fillStyle = mutedInk
+  ctx.font = '12px sans-serif'
+  ctx.fillText(`Issued in ${monthName} ${year}`, W / 2, 790)
+  ctx.fillText(clientUrl.replace(/^https?:\/\//, ''), W / 2, 812)
+  ctx.font = '10px monospace'
+  ctx.fillText(`Certificate ID: ${certId || 'PREVIEW'}`, W / 2, 836)
 
   return canvas.toDataURL('image/png')
 }
