@@ -7,7 +7,7 @@ const Certificate = require('../models/Certificate')
 const { auth, adminOnly } = require('../middleware/auth')
 const { createCanvas, loadImage } = require('@napi-rs/canvas')
 const QRCode = require('qrcode')
-const clientUrl = (process.env.CLIENT_URL || 'https://codecircle.online').replace(/\/+$/, '')
+const clientUrl = (process.env.CLIENT_URL || 'https://www.codecircle.online').replace(/\/+$/, '')
 
 // ─── Tier definitions ─────────────────────────────────────────────────────────
 const TIERS = [

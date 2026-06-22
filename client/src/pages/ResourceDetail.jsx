@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import axios from 'axios'
 import { CATEGORIES } from '../components/CategoriesSection'
-import { getApiBase } from '../lib/utils'
+import { getApiBase, SITE_BASE_URL } from '../lib/utils'
 import Seo from '../components/Seo'
 
 const API = getApiBase()
@@ -88,7 +88,7 @@ export default function ResourceDetail() {
         title={resource.title}
         description={resource.description}
         path={`/resources/${resource._id}`}
-        image={resource.image || 'https://codecircle.online/og-image.png'}
+        image={resource.image || `${SITE_BASE_URL}/og-image.png`}
       />
 
       <div className="container-width max-w-5xl">

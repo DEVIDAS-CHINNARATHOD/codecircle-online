@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Calendar, User, ArrowLeft, Tag } from 'lucide-react'
 import axios from 'axios'
-import { getApiBase } from '../lib/utils'
+import { getApiBase, SITE_BASE_URL } from '../lib/utils'
 import Seo from '../components/Seo'
 
 const API = getApiBase()
@@ -52,7 +52,7 @@ export default function BlogPost() {
         title={post.title}
         description={post.excerpt || post.content?.slice(0, 155) || 'Read this CodeCircle blog post.'}
         path={`/blog/${id}`}
-        image={post.image || 'https://codecircle.online/og-image.png'}
+        image={post.image || `${SITE_BASE_URL}/og-image.png`}
         type="article"
       />
       <div className="container-width max-w-2xl">

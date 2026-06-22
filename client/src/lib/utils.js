@@ -5,6 +5,8 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs))
 }
 
+export const SITE_BASE_URL = 'https://www.codecircle.online'
+
 export function getApiBase() {
   const rawApiBase = import.meta.env.VITE_API_URL || '/api'
   if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && rawApiBase.includes('localhost')) {

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { SITE_BASE_URL } from '../lib/utils'
 
 const DEFAULT_TITLE = 'CodeCircle.online | Student Tech Community'
 const DEFAULT_DESCRIPTION = 'CodeCircle is a student tech community for students, by students. Explore curated resources, blog posts, open source contributors, internships, AI, Linux, cybersecurity, and more.'
@@ -34,13 +35,13 @@ export default function Seo({
   title,
   description = DEFAULT_DESCRIPTION,
   path = '/',
-  image = 'https://codecircle.online/og-image.png',
+  image = `${SITE_BASE_URL}/og-image.png`,
   type = 'website',
   noindex = false,
 }) {
   useEffect(() => {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`
-    const canonical = `https://codecircle.online${normalizedPath}`
+    const canonical = `${SITE_BASE_URL}${normalizedPath}`
     const pageTitle = title ? `${title} | ${SITE_NAME}` : DEFAULT_TITLE
     const robots = noindex ? 'noindex, nofollow' : 'index, follow'
 
