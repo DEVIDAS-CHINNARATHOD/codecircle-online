@@ -227,9 +227,23 @@ async function generateCertificateImage({
       }
     }
     octx.putImageData(imgData, 0, 0)
-
-    // Draw the processed transparent signature on the dark certificate canvas
-    ctx.drawImage(offscreen, sigX, sigY - 15, 200, 80)
+    // Calculate aspect ratio to avoid stretching
+    const maxW = 200
+    const maxH = 80
+    const ratio = sW / sH
+    let drawW = maxW
+    let drawH = maxW / ratio
+    
+    if (drawH > maxH) {
+      drawH = maxH
+      drawW = maxH * ratio
+    }
+    
+    // Center signature horizontally, bottom-align vertically in the signature space
+    const drawX = sigX + (maxW - drawW) / 2
+    const drawY = sigY + (maxH - drawH) - 10
+    
+    ctx.drawImage(offscreen, drawX, drawY, drawW, drawH)
   } catch (err) {
     console.error('Error drawing signature:', err)
     // Fallback text signature
@@ -491,4 +505,5 @@ router.get('/all-users', auth, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+router.generateCertificateImage = generateCertificateImage
 module.exports = router
