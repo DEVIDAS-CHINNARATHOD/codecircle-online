@@ -1,9 +1,12 @@
 const router = require('express').Router()
 const Post = require('../models/Post')
 const { auth, adminOnly } = require('../middleware/auth')
+const { cacheMiddleware, bustCache } = require('../middleware/cache')
 
-// GET /api/posts — public
-router.get('/', async (req, res) => {
+const POSTS_PATTERN = '/api/posts*'
+
+// GET /api/posts — public (cached 5 min)
+router.get('/', cacheMiddleware(300), async (req, res) => {
   try {
     const { page = 1, limit = 9, search, category } = req.query
     const query = {}
@@ -20,8 +23,8 @@ router.get('/', async (req, res) => {
   }
 })
 
-// GET /api/posts/:id — public
-router.get('/:id', async (req, res) => {
+// GET /api/posts/:id — public (cached 10 min — individual posts change rarely)
+router.get('/:id', cacheMiddleware(600), async (req, res) => {
   try {
     const post = await Post.findById(req.params.id).populate('author', 'name avatar')
     if (!post) return res.status(404).json({ error: 'Not found' })
@@ -32,7 +35,7 @@ router.get('/:id', async (req, res) => {
 })
 
 // POST /api/posts — admin only
-router.post('/', auth, adminOnly, async (req, res) => {
+router.post('/', auth, adminOnly, bustCache(POSTS_PATTERN), async (req, res) => {
   try {
     const post = await Post.create({ ...req.body, author: req.user._id })
     res.status(201).json(post)
@@ -42,7 +45,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
 })
 
 // PUT /api/posts/:id — admin only
-router.put('/:id', auth, adminOnly, async (req, res) => {
+router.put('/:id', auth, adminOnly, bustCache(POSTS_PATTERN), async (req, res) => {
   try {
     const post = await Post.findByIdAndUpdate(req.params.id, req.body, { new: true })
     if (!post) return res.status(404).json({ error: 'Not found' })
@@ -53,7 +56,7 @@ router.put('/:id', auth, adminOnly, async (req, res) => {
 })
 
 // DELETE /api/posts/:id — admin only
-router.delete('/:id', auth, adminOnly, async (req, res) => {
+router.delete('/:id', auth, adminOnly, bustCache(POSTS_PATTERN), async (req, res) => {
   try {
     await Post.findByIdAndDelete(req.params.id)
     res.json({ ok: true })

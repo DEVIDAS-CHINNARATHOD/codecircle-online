@@ -1,11 +1,15 @@
 const router = require('express').Router()
 const Resource = require('../models/Resource')
 const { auth, adminOnly } = require('../middleware/auth')
+const { cacheMiddleware, bustCache } = require('../middleware/cache')
 
-const canManageResource = (resource, user) => resource && (user?.isAdmin || String(resource.submittedBy) === String(user?._id))
+const RESOURCES_PATTERN = '/api/resources*'
 
-// GET /api/resources — public
-router.get('/', async (req, res) => {
+const canManageResource = (resource, user) =>
+  resource && (user?.isAdmin || String(resource.submittedBy) === String(user?._id))
+
+// GET /api/resources — public (cached 5 min)
+router.get('/', cacheMiddleware(300), async (req, res) => {
   try {
     const { limit = 12, category } = req.query
     const query = {}
@@ -21,7 +25,7 @@ router.get('/', async (req, res) => {
 })
 
 // POST /api/resources — authenticated users can submit resources
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, bustCache(RESOURCES_PATTERN), async (req, res) => {
   try {
     const resource = await Resource.create({ ...req.body, submittedBy: req.user._id })
     res.status(201).json(resource)
@@ -40,8 +44,8 @@ router.get('/mine', auth, async (req, res) => {
   }
 })
 
-// PUT /api/resources/:id — admin only
-router.put('/:id', auth, async (req, res) => {
+// PUT /api/resources/:id — owner or admin
+router.put('/:id', auth, bustCache(RESOURCES_PATTERN), async (req, res) => {
   try {
     const resource = await Resource.findById(req.params.id)
     if (!resource) return res.status(404).json({ error: 'Not found' })
@@ -58,8 +62,8 @@ router.put('/:id', auth, async (req, res) => {
   }
 })
 
-// DELETE /api/resources/:id — admin only
-router.delete('/:id', auth, async (req, res) => {
+// DELETE /api/resources/:id — owner or admin
+router.delete('/:id', auth, bustCache(RESOURCES_PATTERN), async (req, res) => {
   try {
     const resource = await Resource.findById(req.params.id)
     if (!resource) return res.status(404).json({ error: 'Not found' })
