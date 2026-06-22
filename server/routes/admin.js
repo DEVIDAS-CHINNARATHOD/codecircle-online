@@ -19,6 +19,11 @@ const resolveTier = (count) => TIERS.find(t => count >= t.min) || null
 
 // Founder signature path
 const SIGNATURE_PATH = path.join(__dirname, '../assets/founder_signature1.png')
+const BADGE_IMAGE_PATHS = {
+  codespark: path.join(__dirname, '../../client/public/assets/badge_spark.jpg'),
+  codeflame: path.join(__dirname, '../../client/public/assets/badge_catalyst.jpg'),
+  codeelite: path.join(__dirname, '../../client/public/assets/badge_titan.jpg'),
+}
 
 function wrapCenteredText(ctx, text, x, startY, maxWidth, lineHeight) {
   const words = String(text || '').split(/\s+/).filter(Boolean)
@@ -67,6 +72,7 @@ async function generateCertificateImage({
 
   const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
   const qrVerifyUrl = `${clientUrl}/verify/${certId || 'preview'}`
+  const badgeImagePath = BADGE_IMAGE_PATHS[tier] || null
 
   const bg = ctx.createLinearGradient(0, 0, W, H)
   bg.addColorStop(0, paper)
@@ -162,8 +168,8 @@ async function generateCertificateImage({
     ctx.fillText('Congratulations and thank you for helping student learning grow stronger together.', W / 2, 510)
   }
 
-  const pillW = 320
-  const pillH = 68
+  const pillW = 430
+  const pillH = 82
   const pillX = W / 2 - pillW / 2
   const pillY = 560
   ctx.fillStyle = softAccent
@@ -174,13 +180,45 @@ async function generateCertificateImage({
   ctx.lineWidth = 1.2
   ctx.stroke()
 
-  ctx.fillStyle = ink
-  ctx.font = 'bold 28px serif'
-  ctx.fillText(badgeName, W / 2, pillY + 36)
+  const badgeIconSize = 54
+  const badgeIconX = pillX + 34
+  const badgeIconY = pillY + 14
+  let badgeLogoDrawn = false
+  if (badgeImagePath) {
+    try {
+      const badgeImg = await loadImage(badgeImagePath)
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(badgeIconX + badgeIconSize / 2, badgeIconY + badgeIconSize / 2, badgeIconSize / 2, 0, Math.PI * 2)
+      ctx.closePath()
+      ctx.clip()
+      ctx.drawImage(badgeImg, badgeIconX, badgeIconY, badgeIconSize, badgeIconSize)
+      ctx.restore()
+      badgeLogoDrawn = true
+    } catch (err) {
+      console.warn('[certificate badge image]', err.message)
+    }
+  }
 
+  if (!badgeLogoDrawn) {
+    ctx.fillStyle = accent
+    ctx.beginPath()
+    ctx.arc(badgeIconX + badgeIconSize / 2, badgeIconY + badgeIconSize / 2, badgeIconSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    const tierEmoji = TIERS.find(item => item.tier === tier)?.emoji || '🏅'
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = '26px serif'
+    ctx.fillText(tierEmoji, badgeIconX + badgeIconSize / 2, badgeIconY + 37)
+  }
+
+  ctx.textAlign = 'left'
   ctx.fillStyle = mutedInk
-  ctx.font = '12px sans-serif'
-  ctx.fillText('Achievement Badge', W / 2, pillY + 56)
+  ctx.font = '11px sans-serif'
+  ctx.fillText('ACHIEVEMENT BADGE', pillX + 110, pillY + 30)
+  ctx.fillStyle = ink
+  ctx.font = 'bold 30px serif'
+  ctx.fillText(badgeName, pillX + 110, pillY + 60)
+  ctx.textAlign = 'center'
 
   if (customMessage) {
     ctx.fillStyle = mutedInk
@@ -210,7 +248,7 @@ async function generateCertificateImage({
       const g = data[i + 1]
       const b = data[i + 2]
       const brightness = (r + g + b) / 3
-      if (brightness > 245) {
+      if (brightness > 180) {
         data[i + 3] = 0
       } else {
         data[i] = rInk
@@ -221,8 +259,8 @@ async function generateCertificateImage({
     }
 
     octx.putImageData(imgData, 0, 0)
-    const maxW = 280
-    const maxH = 88
+    const maxW = 320
+    const maxH = 100
     const ratio = sW / sH
     let drawW = maxW
     let drawH = maxW / ratio
@@ -232,8 +270,8 @@ async function generateCertificateImage({
       drawW = maxH * ratio
     }
 
-    const drawX = sigBaseX
-    const drawY = sigBaseY - drawH
+    const drawX = sigBaseX - 6
+    const drawY = sigBaseY - drawH - 6
     ctx.drawImage(offscreen, drawX, drawY, drawW, drawH)
   } catch (err) {
     console.error('Error drawing signature:', err)
@@ -247,7 +285,7 @@ async function generateCertificateImage({
   ctx.lineWidth = 1
   ctx.beginPath()
   ctx.moveTo(sigBaseX - 10, sigBaseY + 12)
-  ctx.lineTo(sigBaseX + 250, sigBaseY + 12)
+  ctx.lineTo(sigBaseX + 280, sigBaseY + 12)
   ctx.stroke()
 
   ctx.textAlign = 'left'
@@ -430,6 +468,40 @@ router.put('/certificates/:id/edit', auth, adminOnly, async (req, res) => {
     res.json({ ok: true, certificateId: cert._id, badgeName: cert.badgeName })
   } catch (err) {
     console.error('[cert edit]', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/admin/certificates/:id/rerender ──────────────────────────────
+// Rebuild an existing certificate image using the latest template.
+router.post('/certificates/:id/rerender', auth, adminOnly, async (req, res) => {
+  try {
+    const cert = await Certificate.findById(req.params.id).populate('userId', 'name username')
+    if (!cert) return res.status(404).json({ error: 'Not found' })
+
+    const imageData = await generateCertificateImage({
+      userName: cert.userId?.name || 'Unknown User',
+      username: cert.userId?.username || null,
+      badgeName: cert.badgeName,
+      tier: cert.tier,
+      month: cert.month,
+      year: cert.year,
+      resourceCount: cert.resourceCount,
+      themeColor: cert.themeColor,
+      customMessage: cert.customMessage,
+      isCustom: cert.isCustom,
+      platforms: cert.platforms,
+      contribution: cert.contribution,
+      certId: String(cert._id),
+    })
+
+    cert.imageData = imageData
+    cert.downloaded = false
+    await cert.save()
+
+    res.json({ ok: true, certificateId: cert._id })
+  } catch (err) {
+    console.error('[cert rerender]', err)
     res.status(500).json({ error: err.message })
   }
 })

@@ -35,6 +35,7 @@ export default function Admin() {
   const [certificates, setCertificates]   = useState([])
   const [certLoading, setCertLoading]     = useState(false)
   const [generating, setGenerating]       = useState(null) // userId being generated
+  const [rerenderingCertId, setRerenderingCertId] = useState(null)
   const [allUsers, setAllUsers]           = useState([])
 
   // Modals state
@@ -176,6 +177,20 @@ export default function Admin() {
       alert(err.response?.data?.error || 'Failed to update certificate.')
     } finally {
       setSubmitting(false)
+      setTimeout(() => setMsg(''), 3000)
+    }
+  }
+
+  const rerenderCertificate = async (certificateId) => {
+    setRerenderingCertId(certificateId)
+    try {
+      await axios.post(`${API}/admin/certificates/${certificateId}/rerender`)
+      setMsg('Certificate design refreshed successfully!')
+      fetchData()
+    } catch (err) {
+      setMsg(err.response?.data?.error || 'Failed to refresh certificate design.')
+    } finally {
+      setRerenderingCertId(null)
       setTimeout(() => setMsg(''), 3000)
     }
   }
@@ -531,6 +546,14 @@ export default function Admin() {
                         <div className="text-xs text-neutral-600 shrink-0">
                           {cert.downloaded ? <span className="text-green-500 flex items-center gap-1"><Download size={11} /> Downloaded</span> : 'Not yet downloaded'}
                         </div>
+                        <button
+                          onClick={() => rerenderCertificate(cert._id)}
+                          disabled={rerenderingCertId === cert._id}
+                          className="btn-ghost text-xs flex items-center gap-1"
+                        >
+                          <RefreshCw size={12} className={rerenderingCertId === cert._id ? 'animate-spin' : ''} />
+                          {rerenderingCertId === cert._id ? 'Refreshing...' : 'Refresh Design'}
+                        </button>
                         <button
                           onClick={() => {
                             setEditForm({
