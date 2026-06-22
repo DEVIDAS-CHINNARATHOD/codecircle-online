@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Edit2, Plus, Save, Sparkles, UploadCloud, X,
+  Check, Edit2, Plus, Save, Sparkles, UploadCloud, X,
   Award, Download, Share2, Trophy, ChevronRight,
   Zap, Flame, Crown,
 } from 'lucide-react'
@@ -20,6 +20,7 @@ const emptyForm = { title: '', description: '', category: '', link: '', image: '
 
 const TIER_ORDER = ['codespark', 'codeflame', 'codeelite']
 const TIER_THRESHOLDS = { codespark: 1, codeflame: 5, codeelite: 10 }
+const getCategoryMeta = (slug) => CATEGORIES.find(category => category.slug === slug)
 
 export default function Dashboard() {
   const { user, loading, loginWithGoogle } = useAuth()
@@ -146,7 +147,8 @@ export default function Dashboard() {
   // ── Derived values ────────────────────────────────────────────────────────
   const currentMonth = badgeData?.currentMonth
   const myRank       = leaderboard.findIndex(e => String(e.userId) === String(user?._id)) + 1 || null
-  const profileUrl   = user ? `${window.location.origin}/u/${user._id}` : ''
+  const profileUrl   = user ? `${window.location.origin}/u/${user.username || user._id}` : ''
+  const selectedCategory = getCategoryMeta(form.category)
 
   // Progress bar toward next badge
   const count        = currentMonth?.resourceCount || 0
@@ -155,10 +157,13 @@ export default function Dashboard() {
   const progress     = nextTier ? Math.min((count / nextTarget) * 100, 100) : 100
 
   // Latest (highest tier) badge this month
-  const latestBadge = badgeData?.badges?.find(b => {
+  const latestBadgesThisMonth = badgeData?.badges?.filter(b => {
     const now = new Date()
     return b.month === now.getMonth() + 1 && b.year === now.getFullYear()
-  }) || null
+  }) || []
+  const latestBadge = latestBadgesThisMonth.sort(
+    (a, b) => TIER_ORDER.indexOf(b.tier) - TIER_ORDER.indexOf(a.tier)
+  )[0] || null
 
   if (loading || !user) {
     return (
@@ -238,9 +243,9 @@ export default function Dashboard() {
               />
             </div>
             <div className="flex justify-between text-xs text-neutral-700">
-              <span className="flex items-center gap-1"><Zap size={10} /> 1 CodeSpark</span>
-              <span className="flex items-center gap-1"><Flame size={10} /> 5 CodeFlame</span>
-              <span className="flex items-center gap-1"><Crown size={10} /> 10 CodeElite</span>
+              <span className="flex items-center gap-1"><Zap size={10} /> 1 Spark</span>
+              <span className="flex items-center gap-1"><Flame size={10} /> 5 Catalyst</span>
+              <span className="flex items-center gap-1"><Crown size={10} /> 10 Titan</span>
             </div>
           </div>
 
@@ -257,7 +262,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-sm text-neutral-500 py-2">
-              No badges yet. Share your first resource to earn the <span className="text-violet-400">⚡ CodeSpark</span> badge!
+              No badges yet. Share your first resource to earn the <span className="text-violet-400">⚡ Spark</span> badge!
             </div>
           )}
 
@@ -275,7 +280,11 @@ export default function Dashboard() {
                     animate={{ opacity: 1, x: 0 }}
                     className={`flex items-center gap-4 rounded-xl border p-4 ${meta?.bg} ${meta?.border}`}
                   >
-                    <span className="text-2xl">{meta?.icon}</span>
+                    {meta?.iconUrl ? (
+                      <img src={meta.iconUrl} className="w-8 h-8 object-contain" alt={cert.badgeName} />
+                    ) : (
+                      <span className="text-2xl">{meta?.icon}</span>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold text-sm ${meta?.color}`}>{cert.badgeName}</div>
                       <div className="text-xs text-neutral-500 mt-0.5">{monthName} {cert.year} · {cert.resourceCount} resource{cert.resourceCount !== 1 ? 's' : ''}</div>
@@ -322,10 +331,31 @@ export default function Dashboard() {
 
             <input required value={form.title} onChange={e => setForm(cur => ({ ...cur, title: e.target.value }))} placeholder="Title" className="input-base" />
             <textarea required value={form.description} onChange={e => setForm(cur => ({ ...cur, description: e.target.value }))} placeholder="Description" rows={4} className="input-base" />
-            <select value={form.category} onChange={e => setForm(cur => ({ ...cur, category: e.target.value }))} className="input-base">
-              <option value="">Select category</option>
-              {CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.title}</option>)}
-            </select>
+            <div className="flex flex-col gap-3">
+              <label className="text-xs uppercase tracking-[0.2em] text-neutral-600">Category</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {CATEGORIES.map(category => {
+                  const active = form.category === category.slug
+                  return (
+                    <button
+                      key={category.slug}
+                      type="button"
+                      onClick={() => setForm(cur => ({ ...cur, category: category.slug }))}
+                      className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors ${active ? 'bg-white/10 border-white/25' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                    >
+                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: category.accent }} />
+                      <span className="text-sm text-white flex-1">{category.title}</span>
+                      {active && <Check size={14} className="text-green-400 shrink-0" />}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedCategory && (
+                <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: selectedCategory.accent }}>
+                  Selected: {selectedCategory.title}
+                </div>
+              )}
+            </div>
             <input required value={form.link} onChange={e => setForm(cur => ({ ...cur, link: e.target.value }))} placeholder="Resource URL" className="input-base" />
             <div className="flex flex-col gap-2">
               <label className="text-xs uppercase tracking-[0.2em] text-neutral-600">Image upload</label>
@@ -371,6 +401,12 @@ export default function Dashboard() {
                         : <div className="w-14 h-14 rounded-lg bg-white/5 shrink-0" />
                       }
                       <div className="min-w-0 flex-1">
+                        {getCategoryMeta(resource.category) && (
+                          <div className="mb-2 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: getCategoryMeta(resource.category).accent }}>
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryMeta(resource.category).accent }} />
+                            {getCategoryMeta(resource.category).title}
+                          </div>
+                        )}
                         <div className="text-sm font-medium text-white truncate">{resource.title}</div>
                         <div className="text-xs text-neutral-500 mt-1 line-clamp-2">{resource.description}</div>
                         <div className="mt-2 flex items-center gap-2 text-xs text-neutral-600">

@@ -8,21 +8,37 @@ const RESOURCES_PATTERN = '/api/resources*'
 const canManageResource = (resource, user) =>
   resource && (user?.isAdmin || String(resource.submittedBy) === String(user?._id))
 
+const parsePositiveInt = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 // GET /api/resources — public (cached 5 min)
 router.get('/', cacheMiddleware(300), async (req, res) => {
   try {
-    const { limit = 12, category } = req.query
+    const { limit = 6, category, page = 1 } = req.query
     const query = {}
     if (category) query.category = category
-    const resources = await Resource.find(query)
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .populate('submittedBy', 'name avatar')
-    res.json({ resources })
+
+    const showAll = limit === 'all'
+    const pageNum = parsePositiveInt(page, 1)
+    const lim     = showAll ? 0 : Math.min(parsePositiveInt(limit, 6), 200) // max 200 per page
+
+    const [resources, total] = await Promise.all([
+      Resource.find(query)
+        .sort({ createdAt: -1 })
+        .skip(showAll ? 0 : (pageNum - 1) * lim)
+        .limit(lim)
+        .populate('submittedBy', 'name avatar'),
+      Resource.countDocuments(query),
+    ])
+
+    res.json({ resources, total, hasMore: showAll ? false : total > pageNum * lim })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
+
 
 // POST /api/resources — authenticated users can submit resources
 router.post('/', auth, bustCache(RESOURCES_PATTERN), async (req, res) => {

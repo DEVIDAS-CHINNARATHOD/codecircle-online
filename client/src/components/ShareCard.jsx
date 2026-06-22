@@ -110,7 +110,12 @@ export default function ShareCard({ user, badge, resourceCount, rank, profileUrl
               )}
               {badge && meta && (
                 <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold ${meta.bg} ${meta.border} ${meta.color}`}>
-                  {meta.icon} {badge.badgeName}
+                  {meta.iconUrl ? (
+                    <img src={meta.iconUrl} className="w-4 h-4 object-contain" alt={badge.badgeName} />
+                  ) : (
+                    <span>{meta.icon}</span>
+                  )}
+                  <span>{badge.badgeName}</span>
                 </div>
               )}
             </div>

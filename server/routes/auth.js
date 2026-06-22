@@ -63,6 +63,7 @@ router.get(
     const user = {
       _id: req.user._id,
       name: req.user.name,
+      username: req.user.username,
       email: req.user.email,
       avatar: req.user.avatar,
       isAdmin: req.user.isAdmin,
@@ -78,6 +79,7 @@ router.get('/me', auth, (req, res) => {
   res.json({
     _id: req.user._id,
     name: req.user.name,
+    username: req.user.username,
     email: req.user.email,
     avatar: req.user.avatar,
     isAdmin: req.user.isAdmin,

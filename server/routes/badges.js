@@ -4,9 +4,9 @@ const Badge = require('../models/Badge')
 const { auth } = require('../middleware/auth')
 
 const TIERS = [
-  { min: 10, tier: 'codeelite',  badgeName: 'CodeElite'  },
-  { min: 5,  tier: 'codeflame',  badgeName: 'CodeFlame'  },
-  { min: 1,  tier: 'codespark',  badgeName: 'CodeSpark'  },
+  { min: 10, tier: 'codeelite',  badgeName: 'Titan'  },
+  { min: 5,  tier: 'codeflame',  badgeName: 'Catalyst'  },
+  { min: 1,  tier: 'codespark',  badgeName: 'Spark'  },
 ]
 
 /** Determine the highest badge tier for a resource count */

@@ -8,6 +8,13 @@ import { getApiBase } from '../lib/utils'
 import Seo from '../components/Seo'
 
 const API = getApiBase()
+const getHostname = (url) => {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return url
+  }
+}
 
 export default function CategoryPage() {
   const { slug } = useParams()
@@ -98,9 +105,13 @@ export default function CategoryPage() {
                       <a href={res.link} target="_blank" rel="noreferrer" className="group glass rounded-xl p-5 flex gap-4 hover:border-white/20 transition-all">
                         {res.image && <img src={res.image} alt={res.title} className="w-16 h-16 rounded-lg object-cover shrink-0 opacity-80 group-hover:opacity-100 transition-opacity" />}
                         <div className="min-w-0">
+                          <span className="mb-2 inline-flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: category.accent }}>
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: category.accent }} />
+                            {category.title}
+                          </span>
                           <h3 className="font-medium text-white text-sm mb-1 truncate">{res.title}</h3>
                           <p className="text-xs text-neutral-500 line-clamp-2">{res.description}</p>
-                          <span className="mt-2 inline-block text-xs text-neutral-700 font-mono">{res.link ? new URL(res.link).hostname : ''}</span>
+                          <span className="mt-2 inline-block text-xs text-neutral-700 font-mono">{res.link ? getHostname(res.link) : ''}</span>
                         </div>
                       </a>
                     </motion.div>

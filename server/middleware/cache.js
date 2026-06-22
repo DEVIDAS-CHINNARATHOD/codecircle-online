@@ -7,8 +7,8 @@
  * Cache busting (apply to POST/PUT/DELETE routes):
  *   router.post('/', auth, bustCache('/api/resources*'), handler)
  *
- * Cache key = request path + sorted query string, so
- *   /api/resources?limit=12  and  /api/resources?limit=6  are stored separately.
+ * Cache key = mounted request path + sorted query string, so
+ *   /api/resources?limit=12 and /api/posts?limit=12 are stored separately.
  */
 const cache = require('../lib/redis')
 
@@ -17,10 +17,11 @@ const cache = require('../lib/redis')
  * @param {import('express').Request} req
  */
 const buildKey = (req) => {
+  const mountedPath = `${req.baseUrl}${req.path}`.replace(/\/+$/, '') || '/'
   const sorted = new URLSearchParams(
     Object.entries(req.query).sort(([a], [b]) => a.localeCompare(b))
   ).toString()
-  return sorted ? `${req.path}?${sorted}` : req.path
+  return sorted ? `${mountedPath}?${sorted}` : mountedPath
 }
 
 /**
@@ -49,8 +50,10 @@ const cacheMiddleware = (ttl = 300) => async (req, res, next) => {
   const originalJson = res.json.bind(res)
   res.json = (body) => {
     res.setHeader('X-Cache', 'MISS')
-    const serialised = JSON.stringify(body)
-    cache.set(key, serialised, ttl) // fire-and-forget
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const serialised = JSON.stringify(body)
+      cache.set(key, serialised, ttl) // fire-and-forget
+    }
     return originalJson(body)
   }
 
