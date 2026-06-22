@@ -312,12 +312,12 @@ export default function Dashboard() {
         </div>
 
         {/* ── Resource Form + Uploads Grid ─────────────────────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] gap-8 items-start">
           <motion.form
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             onSubmit={submit}
-            className="glass rounded-2xl p-6 md:p-8 flex flex-col gap-4"
+            className="glass rounded-2xl p-6 md:p-8 flex min-w-0 flex-col gap-4"
           >
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -333,7 +333,7 @@ export default function Dashboard() {
             <textarea required value={form.description} onChange={e => setForm(cur => ({ ...cur, description: e.target.value }))} placeholder="Description" rows={4} className="input-base" />
             <div className="flex flex-col gap-3">
               <label className="text-xs uppercase tracking-[0.2em] text-neutral-600">Category</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
                 {CATEGORIES.map(category => {
                   const active = form.category === category.slug
                   return (
@@ -341,10 +341,10 @@ export default function Dashboard() {
                       key={category.slug}
                       type="button"
                       onClick={() => setForm(cur => ({ ...cur, category: category.slug }))}
-                      className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors ${active ? 'bg-white/10 border-white/25' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                      className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors ${active ? 'bg-white/10 border-white/25' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
                     >
                       <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: category.accent }} />
-                      <span className="text-sm text-white flex-1">{category.title}</span>
+                      <span className="text-sm text-white flex-1 min-w-0 leading-snug">{category.title}</span>
                       {active && <Check size={14} className="text-green-400 shrink-0" />}
                     </button>
                   )
@@ -374,13 +374,13 @@ export default function Dashboard() {
           </motion.form>
 
           {/* Uploads list */}
-          <div className="glass rounded-2xl p-6 md:p-8">
-            <div className="flex items-center justify-between mb-5">
-              <div>
+          <div className="glass min-w-0 rounded-2xl p-6 md:p-8">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-white font-medium text-lg">Your uploads</h2>
                 <p className="text-sm text-neutral-500 mt-1">Everything you've shared so far.</p>
               </div>
-              <div className="flex items-center gap-2 text-xs text-neutral-600">
+              <div className="flex shrink-0 items-center gap-2 text-xs text-neutral-600">
                 <Sparkles size={12} /> {resources.length} total
               </div>
             </div>
@@ -394,7 +394,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-3 max-h-[680px] overflow-auto pr-1">
                 {resources.map(resource => (
-                  <div key={resource._id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div key={resource._id} className="overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-start gap-3">
                       {resource.image
                         ? <img src={resource.image} alt={resource.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
@@ -407,10 +407,10 @@ export default function Dashboard() {
                             {getCategoryMeta(resource.category).title}
                           </div>
                         )}
-                        <div className="text-sm font-medium text-white truncate">{resource.title}</div>
-                        <div className="text-xs text-neutral-500 mt-1 line-clamp-2">{resource.description}</div>
-                        <div className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
-                          <span className="font-mono truncate">{resource.link}</span>
+                        <div className="truncate text-sm font-medium text-white">{resource.title}</div>
+                        <div className="mt-1 line-clamp-2 break-words text-xs text-neutral-500">{resource.description}</div>
+                        <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-neutral-600">
+                          <span className="block min-w-0 truncate font-mono">{resource.link}</span>
                         </div>
                       </div>
                     </div>
