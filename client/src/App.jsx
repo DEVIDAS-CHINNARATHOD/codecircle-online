@@ -10,6 +10,7 @@ import Admin from './pages/Admin'
 import AuthCallback from './pages/AuthCallback'
 import SubmitResource from './pages/SubmitResource'
 import Dashboard from './pages/Dashboard'
+import PublicProfile from './pages/PublicProfile'
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/submit-resource" element={<SubmitResource />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/u/:userId" element={<PublicProfile />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>
         </main>

@@ -48,6 +48,9 @@ app.use('/api/auth', require('./routes/auth'))
 app.use('/api/posts', require('./routes/posts'))
 app.use('/api/resources', require('./routes/resources'))
 app.use('/api/admin', require('./routes/admin'))
+app.use('/api/badges', require('./routes/badges'))
+app.use('/api/certificates', require('./routes/certificates'))
+app.use('/api/users', require('./routes/users'))
 
 // Health
 app.get('/api/health', (_req, res) => {
