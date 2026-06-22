@@ -26,7 +26,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/submit-resource" element={<SubmitResource />} />
             <Route path="/admin" element={<Admin />} />
-            <Route path="/u/:userId" element={<PublicProfile />} />
+            <Route path="/u/:username" element={<PublicProfile />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>
         </main>

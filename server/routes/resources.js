@@ -11,18 +11,28 @@ const canManageResource = (resource, user) =>
 // GET /api/resources — public (cached 5 min)
 router.get('/', cacheMiddleware(300), async (req, res) => {
   try {
-    const { limit = 12, category } = req.query
+    const { limit = 6, category, page = 1 } = req.query
     const query = {}
     if (category) query.category = category
-    const resources = await Resource.find(query)
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .populate('submittedBy', 'name avatar')
-    res.json({ resources })
+
+    const showAll = limit === 'all'
+    const lim     = showAll ? 0 : Math.min(Number(limit), 200) // max 200 per page
+
+    const [resources, total] = await Promise.all([
+      Resource.find(query)
+        .sort({ createdAt: -1 })
+        .skip(showAll ? 0 : (Number(page) - 1) * lim)
+        .limit(lim)
+        .populate('submittedBy', 'name avatar'),
+      Resource.countDocuments(query),
+    ])
+
+    res.json({ resources, total, hasMore: showAll ? false : total > Number(page) * lim })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
+
 
 // POST /api/resources — authenticated users can submit resources
 router.post('/', auth, bustCache(RESOURCES_PATTERN), async (req, res) => {

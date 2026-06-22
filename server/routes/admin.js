@@ -1,89 +1,286 @@
-const router = require('express').Router()
+const path    = require('path')
+const router  = require('express').Router()
 const User        = require('../models/User')
 const Resource    = require('../models/Resource')
 const Badge       = require('../models/Badge')
 const Certificate = require('../models/Certificate')
 const { auth, adminOnly } = require('../middleware/auth')
 const { createCanvas, loadImage } = require('@napi-rs/canvas')
+const QRCode = require('qrcode')
 
+// ─── Tier definitions ─────────────────────────────────────────────────────────
 const TIERS = [
-  { min: 10, tier: 'codeelite',  badgeName: 'CodeElite',  color: '#FFD700' },
-  { min: 5,  tier: 'codeflame',  badgeName: 'CodeFlame',  color: '#FF6B35' },
-  { min: 1,  tier: 'codespark',  badgeName: 'CodeSpark',  color: '#7B61FF' },
+  { min: 10, tier: 'codeelite', badgeName: 'CodeElite', color: '#FFD700', emoji: '👑' },
+  { min: 5,  tier: 'codeflame', badgeName: 'CodeFlame',  color: '#FF6B35', emoji: '🔥' },
+  { min: 1,  tier: 'codespark', badgeName: 'CodeSpark',  color: '#7B61FF', emoji: '⚡' },
 ]
-
 const resolveTier = (count) => TIERS.find(t => count >= t.min) || null
+
+// Founder signature path
+const SIGNATURE_PATH = path.join(__dirname, '../assets/founder_signature.png')
+
+// ─── Certificate canvas generator ────────────────────────────────────────────
+async function generateCertificateImage({
+  userName, badgeName, tier, month, year,
+  resourceCount, themeColor, customMessage,
+  isCustom, platforms, contribution, certId,
+}) {
+  const W = 1200, H = 850
+  const canvas = createCanvas(W, H)
+  const ctx    = canvas.getContext('2d')
+
+  const color = themeColor ||
+    (tier === 'codeelite' ? '#FFD700' :
+     tier === 'codeflame' ? '#FF6B35' :
+     tier === 'codespark' ? '#7B61FF' : '#5B8CFF')
+
+  const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
+
+  // ── Background ─────────────────────────────────────────────────────────────
+  const bg = ctx.createLinearGradient(0, 0, W, H)
+  bg.addColorStop(0,   '#08080F')
+  bg.addColorStop(0.5, '#0E0E1C')
+  bg.addColorStop(1,   '#08080F')
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, W, H)
+
+  // Corner decorations
+  const cornerSize = 60
+  const corners = [[0,0],[W,0],[0,H],[W,H]]
+  corners.forEach(([cx, cy]) => {
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cornerSize * 2)
+    grad.addColorStop(0, `${color}22`)
+    grad.addColorStop(1, 'transparent')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, W, H)
+  })
+
+  // ── Outer border ───────────────────────────────────────────────────────────
+  ctx.strokeStyle = color
+  ctx.lineWidth   = 5
+  ctx.strokeRect(20, 20, W - 40, H - 40)
+
+  // Inner border
+  ctx.strokeStyle = `${color}44`
+  ctx.lineWidth   = 1
+  ctx.strokeRect(32, 32, W - 64, H - 64)
+
+  // ── Header strip ───────────────────────────────────────────────────────────
+  ctx.fillStyle = `${color}18`
+  ctx.fillRect(32, 32, W - 64, 90)
+
+  // ── Logo / Title ───────────────────────────────────────────────────────────
+  ctx.textAlign = 'center'
+  ctx.fillStyle = color
+  ctx.font      = 'bold 22px sans-serif'
+  ctx.fillText('⭕  C O D E C I R C L E', W / 2, 72)
+
+  ctx.fillStyle = `${color}AA`
+  ctx.font      = '11px sans-serif'
+  ctx.fillText('Community · Learning · Growth', W / 2, 96)
+
+  // Subtitle
+  ctx.fillStyle = '#FFFFFF'
+  ctx.font      = '13px sans-serif'
+  ctx.letterSpacing = '4px'
+  ctx.fillText('CERTIFICATE  OF  ACHIEVEMENT', W / 2, 152)
+  ctx.letterSpacing = '0px'
+
+  // Thin divider
+  ctx.strokeStyle = `${color}66`
+  ctx.lineWidth   = 0.8
+  ctx.beginPath(); ctx.moveTo(W/2 - 220, 168); ctx.lineTo(W/2 + 220, 168); ctx.stroke()
+
+  // ── Congratulations ────────────────────────────────────────────────────────
+  ctx.fillStyle = `${color}CC`
+  ctx.font      = 'italic 15px sans-serif'
+  ctx.fillText('Congratulations!', W / 2, 205)
+
+  // "This certifies that"
+  ctx.fillStyle = '#8888AA'
+  ctx.font      = '14px sans-serif'
+  ctx.fillText('This certificate is proudly presented to', W / 2, 238)
+
+  // ── Recipient Name ─────────────────────────────────────────────────────────
+  ctx.fillStyle = '#FFFFFF'
+  ctx.font      = 'bold 54px sans-serif'
+  ctx.fillText(userName, W / 2, 308)
+
+  // Name underline
+  const nameW = ctx.measureText(userName).width
+  ctx.strokeStyle = `${color}88`
+  ctx.lineWidth   = 1.5
+  ctx.beginPath()
+  ctx.moveTo(W/2 - nameW/2, 320)
+  ctx.lineTo(W/2 + nameW/2, 320)
+  ctx.stroke()
+
+  // ── Contribution text ──────────────────────────────────────────────────────
+  ctx.fillStyle = '#9999BB'
+  ctx.font      = '15px sans-serif'
+
+  if (isCustom) {
+    const platformStr = (platforms || []).join(', ') || 'multiple platforms'
+    ctx.fillText(
+      `for outstanding contributions to the CodeCircle community via ${platformStr}`,
+      W / 2, 358
+    )
+    if (contribution) {
+      ctx.fillStyle = '#7777AA'
+      ctx.font = '13px sans-serif'
+      // word-wrap the contribution text
+      const words = contribution.split(' ')
+      let line = '', lineY = 384
+      words.forEach(word => {
+        const test = line ? `${line} ${word}` : word
+        if (ctx.measureText(test).width > W - 200) {
+          ctx.fillText(line, W / 2, lineY)
+          line  = word
+          lineY += 20
+        } else { line = test }
+      })
+      if (line) ctx.fillText(line, W / 2, lineY)
+    }
+  } else {
+    ctx.fillText(
+      `for sharing ${resourceCount} resource${resourceCount !== 1 ? 's' : ''} with the CodeCircle community in ${monthName} ${year}`,
+      W / 2, 358
+    )
+    ctx.fillStyle = '#7777AA'
+    ctx.font      = '13px sans-serif'
+    ctx.fillText('Thank you for your valuable contributions — you make this community stronger! 🚀', W / 2, 384)
+  }
+
+  // ── Badge pill ─────────────────────────────────────────────────────────────
+  const pillW = 280, pillH = 60, pillX = W/2 - pillW/2, pillY = 420
+  ctx.fillStyle = `${color}22`
+  ctx.beginPath()
+  ctx.roundRect(pillX, pillY, pillW, pillH, 30)
+  ctx.fill()
+  ctx.strokeStyle = `${color}88`
+  ctx.lineWidth   = 1.5
+  ctx.stroke()
+
+  ctx.fillStyle = color
+  ctx.font      = 'bold 26px sans-serif'
+  ctx.fillText(badgeName, W / 2, pillY + 39)
+
+  ctx.fillStyle = `${color}AA`
+  ctx.font      = '11px sans-serif'
+  ctx.fillText('Achievement Badge', W / 2, pillY + 56)
+
+  // ── Custom message (if any) ────────────────────────────────────────────────
+  if (customMessage) {
+    ctx.fillStyle = `${color}BB`
+    ctx.font      = 'italic 13px sans-serif'
+    ctx.fillText(`"${customMessage}"`, W / 2, 510)
+  }
+
+  // ── Divider ────────────────────────────────────────────────────────────────
+  ctx.strokeStyle = `${color}33`
+  ctx.lineWidth   = 1
+  ctx.beginPath(); ctx.moveTo(60, 540); ctx.lineTo(W - 60, 540); ctx.stroke()
+
+  // ── Signature section (left) ───────────────────────────────────────────────
+  const sigX = 120, sigY = 560
+
+  // Load and draw signature
+  try {
+    const sig = await loadImage(SIGNATURE_PATH)
+    // Draw white rect behind signature area so it looks on paper
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'
+    ctx.fillRect(sigX - 20, sigY - 10, 220, 80)
+    ctx.drawImage(sig, sigX, sigY, 200, 65)
+  } catch {
+    // Fallback text signature
+    ctx.fillStyle = '#DDDDEE'
+    ctx.font      = 'italic 22px sans-serif'
+    ctx.textAlign = 'left'
+    ctx.fillText('Devidas C.R.', sigX, sigY + 40)
+  }
+
+  // Signature line
+  ctx.strokeStyle = `${color}66`
+  ctx.lineWidth   = 0.8
+  ctx.beginPath(); ctx.moveTo(sigX - 20, sigY + 72); ctx.lineTo(sigX + 200, sigY + 72); ctx.stroke()
+
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#888'
+  ctx.font      = '11px sans-serif'
+  ctx.fillText('Devidas Chinnarathod', sigX - 20, sigY + 90)
+  ctx.fillStyle = `${color}99`
+  ctx.font      = '10px sans-serif'
+  ctx.fillText('Founder, CodeCircle', sigX - 20, sigY + 104)
+
+  // ── QR Code (right) ────────────────────────────────────────────────────────
+  ctx.textAlign = 'center'
+  const qrVerifyUrl = `https://codecircle.online/verify/${certId || 'preview'}`
+  try {
+    const qrDataUrl = await QRCode.toDataURL(qrVerifyUrl, {
+      width: 90, margin: 1,
+      color: { dark: '#FFFFFF', light: '#00000000' },
+    })
+    const qrImg = await loadImage(qrDataUrl)
+    const qrX = W - 160, qrY = 558
+    ctx.drawImage(qrImg, qrX, qrY, 90, 90)
+    ctx.fillStyle = '#555577'
+    ctx.font      = '9px sans-serif'
+    ctx.fillText('Scan to verify', qrX + 45, qrY + 104)
+  } catch { /* QR optional */ }
+
+  // ── Issue date (center bottom) ─────────────────────────────────────────────
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#555577'
+  ctx.font      = '11px sans-serif'
+  ctx.fillText(`Issued: ${monthName} ${year}  ·  codecircle.online`, W / 2, 670)
+
+  // Certificate ID
+  ctx.fillStyle = '#333355'
+  ctx.font      = '9px sans-serif'
+  ctx.fillText(`Certificate ID: ${certId || 'PREVIEW'}`, W / 2, 690)
+
+  return canvas.toDataURL('image/png')
+}
 
 // ─── GET /api/admin/users ─────────────────────────────────────────────────────
 router.get('/users', auth, adminOnly, async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 })
     res.json(users)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-// Admin role is fixed — contributors cannot be promoted.
-router.patch('/users/:id/toggle-admin', auth, adminOnly, async (_req, res) => {
-  res.status(403).json({ error: 'Only one admin is allowed. Contributors cannot be promoted.' })
+router.patch('/users/:id/toggle-admin', auth, adminOnly, (_req, res) => {
+  res.status(403).json({ error: 'Only one admin is allowed.' })
 })
 
 // ─── GET /api/admin/badge-candidates ─────────────────────────────────────────
-// List all users with their current-month resource share count + auto-suggested tier.
 router.get('/badge-candidates', auth, adminOnly, async (req, res) => {
   try {
-    const now   = new Date()
+    const now = new Date()
     const month = now.getMonth() + 1
     const year  = now.getFullYear()
 
     const [counts, existingCerts] = await Promise.all([
       Resource.aggregate([
-        {
-          $match: {
-            createdAt: {
-              $gte: new Date(year, month - 1, 1),
-              $lt:  new Date(year, month, 1),
-            },
-          },
-        },
+        { $match: { createdAt: { $gte: new Date(year, month-1, 1), $lt: new Date(year, month, 1) } } },
         { $group: { _id: '$submittedBy', count: { $sum: 1 } } },
-        {
-          $lookup: {
-            from: 'users',
-            localField: '_id',
-            foreignField: '_id',
-            as: 'user',
-          },
-        },
+        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
         { $unwind: '$user' },
         { $sort: { count: -1 } },
-        {
-          $project: {
-            _id: 0,
-            userId: '$_id',
-            count: 1,
-            name:   '$user.name',
-            email:  '$user.email',
-            avatar: '$user.avatar',
-          },
-        },
+        { $project: { _id: 0, userId: '$_id', count: 1, name: '$user.name', email: '$user.email', avatar: '$user.avatar', username: '$user.username' } },
       ]),
-      Certificate.find({ month, year }).select('userId tier'),
+      Certificate.find({ month, year, isCustom: { $ne: true } }).select('userId tier'),
     ])
 
     const certMap = new Set(existingCerts.map(c => `${c.userId}-${c.tier}`))
-
     const candidates = counts.map(entry => {
       const tier = resolveTier(entry.count)
-      const hasCert = tier ? certMap.has(`${entry.userId}-${tier.tier}`) : false
-      return { ...entry, tier, hasCert }
+      return { ...entry, tier, hasCert: tier ? certMap.has(`${entry.userId}-${tier.tier}`) : false }
     })
 
     res.json({ month, year, candidates })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ─── GET /api/admin/certificates ─────────────────────────────────────────────
@@ -91,181 +288,167 @@ router.get('/certificates', auth, adminOnly, async (req, res) => {
   try {
     const certs = await Certificate.find()
       .sort({ createdAt: -1 })
-      .populate('userId', 'name email avatar')
-      .select('-imageData') // don't return the heavy base64 in the list
+      .populate('userId', 'name email avatar username')
+      .select('-imageData')
     res.json(certs)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ─── POST /api/admin/certificates/generate ───────────────────────────────────
-// Body: { userId, tier }  — generates a certificate image and saves to DB.
 router.post('/certificates/generate', auth, adminOnly, async (req, res) => {
   try {
-    const { userId, tier: requestedTier } = req.body
-    if (!userId || !requestedTier) {
-      return res.status(400).json({ error: 'userId and tier are required' })
-    }
+    const { userId, tier: requestedTier, themeColor, customMessage } = req.body
+    if (!userId || !requestedTier) return res.status(400).json({ error: 'userId and tier are required' })
 
     const tierDef = TIERS.find(t => t.tier === requestedTier)
     if (!tierDef) return res.status(400).json({ error: 'Invalid tier' })
+
+    const now   = new Date()
+    const month = now.getMonth() + 1
+    const year  = now.getFullYear()
 
     const [user, resourceCount] = await Promise.all([
       User.findById(userId),
       Resource.countDocuments({
         submittedBy: userId,
-        createdAt: {
-          $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-          $lt:  new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
-        },
+        createdAt: { $gte: new Date(year, month-1, 1), $lt: new Date(year, month, 1) },
       }),
     ])
+    if (!user) return res.status(404).json({ error: 'User not found' })
 
+    // Generate placeholder cert first to get _id for QR
+    const placeholderCert = await Certificate.findOneAndUpdate(
+      { userId, tier: tierDef.tier, month, year },
+      { userId, tier: tierDef.tier, badgeName: tierDef.badgeName, month, year, resourceCount, issuedByAdmin: req.user._id, imageData: 'pending', themeColor: themeColor || null, customMessage: customMessage || null, downloaded: false },
+      { upsert: true, new: true }
+    )
+
+    const imageData = await generateCertificateImage({
+      userName: user.name,
+      badgeName: tierDef.badgeName,
+      tier: tierDef.tier,
+      month, year, resourceCount,
+      themeColor: themeColor || tierDef.color,
+      customMessage: customMessage || null,
+      isCustom: false,
+      certId: String(placeholderCert._id),
+    })
+
+    placeholderCert.imageData = imageData
+    await placeholderCert.save()
+
+    // Upsert badge
+    await Badge.findOneAndUpdate(
+      { userId, tier: tierDef.tier, month, year },
+      { userId, tier: tierDef.tier, badgeName: tierDef.badgeName, month, year, resourceCount },
+      { upsert: true, new: true }
+    )
+
+    res.json({ ok: true, certificateId: placeholderCert._id, userName: user.name, tier: tierDef.tier, badgeName: tierDef.badgeName, month, year })
+  } catch (err) {
+    console.error('[cert generate]', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── PUT /api/admin/certificates/:id/edit ────────────────────────────────────
+// Edit: badge name, theme color, custom message — then re-render canvas.
+router.put('/certificates/:id/edit', auth, adminOnly, async (req, res) => {
+  try {
+    const { badgeName, themeColor, customMessage } = req.body
+    const cert = await Certificate.findById(req.params.id).populate('userId', 'name')
+    if (!cert) return res.status(404).json({ error: 'Not found' })
+
+    if (badgeName)     cert.badgeName     = badgeName
+    if (themeColor)    cert.themeColor    = themeColor
+    if (customMessage !== undefined) cert.customMessage = customMessage
+
+    // Re-render certificate image
+    const imageData = await generateCertificateImage({
+      userName:      cert.userId.name,
+      badgeName:     cert.badgeName,
+      tier:          cert.tier,
+      month:         cert.month,
+      year:          cert.year,
+      resourceCount: cert.resourceCount,
+      themeColor:    cert.themeColor,
+      customMessage: cert.customMessage,
+      isCustom:      cert.isCustom,
+      platforms:     cert.platforms,
+      contribution:  cert.contribution,
+      certId:        String(cert._id),
+    })
+    cert.imageData  = imageData
+    cert.downloaded = false // reset download state after edit
+    await cert.save()
+
+    res.json({ ok: true, certificateId: cert._id, badgeName: cert.badgeName })
+  } catch (err) {
+    console.error('[cert edit]', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/admin/certificates/custom ─────────────────────────────────────
+// Generate a custom certificate for users who contributed on external platforms.
+// Body: { userId, badgeName, platforms[], contribution, themeColor, customMessage }
+router.post('/certificates/custom', auth, adminOnly, async (req, res) => {
+  try {
+    const { userId, badgeName, platforms, contribution, themeColor, customMessage } = req.body
+    if (!userId || !badgeName) return res.status(400).json({ error: 'userId and badgeName are required' })
+
+    const user = await User.findById(userId)
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     const now   = new Date()
     const month = now.getMonth() + 1
     const year  = now.getFullYear()
 
-    // ── Generate certificate canvas image ────────────────────────────────────
-    const W = 1200, H = 848
-    const canvas = createCanvas(W, H)
-    const ctx    = canvas.getContext('2d')
-
-    // Background gradient
-    const bg = ctx.createLinearGradient(0, 0, W, H)
-    bg.addColorStop(0,   '#0D0D1A')
-    bg.addColorStop(0.5, '#111128')
-    bg.addColorStop(1,   '#0D0D1A')
-    ctx.fillStyle = bg
-    ctx.fillRect(0, 0, W, H)
-
-    // Decorative border
-    ctx.strokeStyle = tierDef.color
-    ctx.lineWidth   = 6
-    ctx.strokeRect(24, 24, W - 48, H - 48)
-
-    // Inner border (thin)
-    ctx.strokeStyle = `${tierDef.color}55`
-    ctx.lineWidth   = 1.5
-    ctx.strokeRect(36, 36, W - 72, H - 72)
-
-    // Title — CodeCircle
-    ctx.fillStyle   = tierDef.color
-    ctx.font        = 'bold 28px sans-serif'
-    ctx.textAlign   = 'center'
-    ctx.fillText('CodeCircle', W / 2, 110)
-
-    // Certificate of Achievement
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font      = '18px sans-serif'
-    ctx.fillText('Certificate of Achievement', W / 2, 148)
-
-    // Divider
-    ctx.strokeStyle = `${tierDef.color}88`
-    ctx.lineWidth   = 1
-    ctx.beginPath()
-    ctx.moveTo(W / 2 - 200, 172)
-    ctx.lineTo(W / 2 + 200, 172)
-    ctx.stroke()
-
-    // "This certifies that"
-    ctx.fillStyle = '#9999BB'
-    ctx.font      = '16px sans-serif'
-    ctx.fillText('This certifies that', W / 2, 218)
-
-    // Recipient name
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font      = 'bold 52px sans-serif'
-    ctx.fillText(user.name, W / 2, 296)
-
-    // Description
-    ctx.fillStyle = '#9999BB'
-    ctx.font      = '17px sans-serif'
-    const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
-    ctx.fillText(`has shared ${resourceCount} resource${resourceCount !== 1 ? 's' : ''} on CodeCircle in ${monthName} ${year}`, W / 2, 348)
-
-    // Badge tier label
-    const badgeY = 460
-    ctx.fillStyle = tierDef.color
-    ctx.font      = 'bold 42px sans-serif'
-    ctx.fillText(tierDef.badgeName, W / 2, badgeY)
-
-    // Tier badge subtitle
-    ctx.fillStyle = '#7777AA'
-    ctx.font      = '15px sans-serif'
-    ctx.fillText('Achievement Tier', W / 2, badgeY + 34)
-
-    // Bottom bar
-    ctx.fillStyle = `${tierDef.color}22`
-    ctx.fillRect(36, H - 120, W - 72, 1)
-
-    ctx.fillStyle = '#666699'
-    ctx.font      = '13px sans-serif'
-    ctx.fillText(`Issued by CodeCircle Admin  ·  ${monthName} ${year}`, W / 2, H - 72)
-    ctx.fillText('codecircle.online', W / 2, H - 48)
-
-    // Encode to base64
-    const imageData = canvas.toDataURL('image/png')
-
-    // Upsert certificate (re-generate if already exists)
-    const cert = await Certificate.findOneAndUpdate(
-      { userId, tier: tierDef.tier, month, year },
-      {
-        userId,
-        tier: tierDef.tier,
-        badgeName: tierDef.badgeName,
-        month,
-        year,
-        resourceCount,
-        issuedByAdmin: req.user._id,
-        imageData,
-        downloaded: false,
-      },
-      { upsert: true, new: true }
-    )
-
-    // Also upsert the corresponding badge
-    await Badge.findOneAndUpdate(
-      { userId, tier: tierDef.tier, month, year },
-      {
-        userId,
-        tier: tierDef.tier,
-        badgeName: tierDef.badgeName,
-        month,
-        year,
-        resourceCount,
-      },
-      { upsert: true, new: true }
-    )
-
-    // Return without the heavy imageData
-    res.json({
-      ok: true,
-      certificateId: cert._id,
-      userName: user.name,
-      tier: tierDef.tier,
-      badgeName: tierDef.badgeName,
-      month,
-      year,
+    // Create cert without unique constraint (isCustom: true)
+    const cert = await Certificate.create({
+      userId, tier: 'custom', badgeName, month, year,
+      resourceCount: 0, issuedByAdmin: req.user._id,
+      imageData: 'pending', isCustom: true,
+      platforms: platforms || [], contribution: contribution || null,
+      themeColor: themeColor || '#5B8CFF', customMessage: customMessage || null,
     })
+
+    const imageData = await generateCertificateImage({
+      userName: user.name, badgeName, tier: 'custom',
+      month, year, resourceCount: 0,
+      themeColor: themeColor || '#5B8CFF',
+      customMessage: customMessage || null,
+      isCustom: true, platforms: platforms || [],
+      contribution: contribution || null,
+      certId: String(cert._id),
+    })
+
+    cert.imageData = imageData
+    await cert.save()
+
+    res.json({ ok: true, certificateId: cert._id, userName: user.name, badgeName })
   } catch (err) {
-    console.error('[Certificate generate]', err)
+    console.error('[cert custom]', err)
     res.status(500).json({ error: err.message })
   }
 })
 
 // ─── GET /api/admin/certificates/:id/download ────────────────────────────────
-// Returns the full base64 PNG for download (admin only in this route).
 router.get('/certificates/:id/download', auth, adminOnly, async (req, res) => {
   try {
     const cert = await Certificate.findById(req.params.id)
     if (!cert) return res.status(404).json({ error: 'Not found' })
     res.json({ imageData: cert.imageData, badgeName: cert.badgeName })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ─── GET /api/admin/all-users ─────────────────────────────────────────────────
+// Returns all users — used by custom cert modal user picker
+router.get('/all-users', auth, adminOnly, async (req, res) => {
+  try {
+    const users = await User.find().sort({ name: 1 }).select('name email avatar username')
+    res.json(users)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 module.exports = router
